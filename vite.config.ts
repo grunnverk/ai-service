@@ -36,8 +36,9 @@ export default defineConfig({
                     }
                 };
 
-                // Copy prompts markdown files
-                copyDir('src/prompts', 'dist/src/prompts');
+                // Copy prompts markdown files to dist root
+                // (because bundled code in dist/index.js uses __dirname which resolves to dist/)
+                copyDir('src/prompts', 'dist');
             }
         }
     ],
