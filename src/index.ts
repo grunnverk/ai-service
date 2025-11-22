@@ -1,0 +1,14 @@
+/**
+ * @eldrforge/ai-service
+ *
+ * AI-powered content generation for automation tools.
+ * Provides OpenAI integration with structured prompts for
+ * generating commit messages, release notes, and code reviews.
+ */
+
+// Core functionality
+export * from './types';
+export * from './logger';
+export * from './ai';
+export * from './interactive';
+export * from './prompts';
