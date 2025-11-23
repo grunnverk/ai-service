@@ -7,13 +7,15 @@ const mockChatCreate = vi.fn();
 
 // Mock OpenAI
 vi.mock('openai', () => ({
-    OpenAI: vi.fn().mockImplementation(() => ({
-        chat: {
-            completions: {
-                create: mockChatCreate,
+    OpenAI: vi.fn(function() {
+        return {
+            chat: {
+                completions: {
+                    create: mockChatCreate,
+                },
             },
-        },
-    })),
+        };
+    }),
 }));
 
 // Mock logger
