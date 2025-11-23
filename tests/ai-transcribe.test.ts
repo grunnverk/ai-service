@@ -11,13 +11,15 @@ const mockReadStream = {
 
 // Mock OpenAI
 vi.mock('openai', () => ({
-    OpenAI: vi.fn().mockImplementation(() => ({
-        audio: {
-            transcriptions: {
-                create: mockTranscriptionsCreate,
+    OpenAI: vi.fn(function() {
+        return {
+            audio: {
+                transcriptions: {
+                    create: mockTranscriptionsCreate,
+                },
             },
-        },
-    })),
+        };
+    }),
 }));
 
 // Mock fs
