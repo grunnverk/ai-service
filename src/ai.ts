@@ -205,6 +205,13 @@ export async function createCompletion(
             timeoutId = setTimeout(() => reject(new OpenAIError(`OpenAI API call timed out after ${timeoutMs/1000} seconds`)), timeoutMs);
         });
 
+        // Add progress indicator that updates every 5 seconds
+        let progressIntervalId: NodeJS.Timeout | null = null;
+        progressIntervalId = setInterval(() => {
+            const elapsed = Math.round((Date.now() - startTime) / 1000);
+            logger.info('   ⏳ Waiting for response... %ds', elapsed);
+        }, 5000);
+
         let completion;
         try {
             completion = await Promise.race([completionPromise, timeoutPromise]);
@@ -212,6 +219,10 @@ export async function createCompletion(
             // Clear the timeout to prevent memory leaks
             if (timeoutId !== null) {
                 clearTimeout(timeoutId);
+            }
+            // Clear the progress interval
+            if (progressIntervalId !== null) {
+                clearInterval(progressIntervalId);
             }
         }
 
