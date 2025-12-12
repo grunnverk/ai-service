@@ -4,6 +4,18 @@ export default defineConfig({
     test: {
         globals: true,
         environment: 'node',
+        // Add pool configuration to prevent memory issues
+        pool: 'forks',
+        poolOptions: {
+            forks: {
+                maxForks: 2,
+                minForks: 1
+            }
+        },
+        // Add test timeout and memory limits
+        testTimeout: 30000,
+        hookTimeout: 10000,
+        teardownTimeout: 10000,
         coverage: {
             provider: 'v8',
             reporter: ['text', 'html', 'lcov'],
