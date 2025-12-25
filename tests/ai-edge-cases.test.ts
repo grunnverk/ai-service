@@ -70,6 +70,7 @@ describe('AI Edge Cases', () => {
                 writeOutput: vi.fn(),
                 readTemp: vi.fn(),
                 writeTemp: vi.fn().mockResolvedValue(undefined),
+                readFile: vi.fn(),
             };
 
             mockChatCreate.mockResolvedValue({
@@ -97,6 +98,7 @@ describe('AI Edge Cases', () => {
                 writeOutput: vi.fn(),
                 readTemp: vi.fn(),
                 writeTemp: vi.fn().mockResolvedValue(undefined),
+                readFile: vi.fn(),
             };
 
             mockChatCreate.mockResolvedValue({
@@ -124,6 +126,7 @@ describe('AI Edge Cases', () => {
                 writeOutput: vi.fn(),
                 readTemp: vi.fn(),
                 writeTemp: vi.fn().mockResolvedValue(undefined),
+                readFile: vi.fn(),
             };
 
             mockChatCreate.mockResolvedValue({
@@ -204,6 +207,7 @@ describe('AI Edge Cases', () => {
                 writeOutput: vi.fn(),
                 readTemp: vi.fn(),
                 writeTemp: vi.fn().mockResolvedValue(undefined),
+                readFile: vi.fn(),
             };
 
             mockTranscriptionsCreate.mockResolvedValue({
