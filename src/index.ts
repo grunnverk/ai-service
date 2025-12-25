@@ -12,3 +12,10 @@ export * from './logger';
 export * from './ai';
 export * from './interactive';
 export * from './prompts';
+
+// Agentic functionality
+export * from './agentic/executor';
+export * from './agentic/commit';
+export * from './tools/types';
+export * from './tools/registry';
+export * from './tools/commit-tools';

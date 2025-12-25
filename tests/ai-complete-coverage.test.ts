@@ -198,6 +198,7 @@ describe('Complete Coverage Tests', () => {
                 writeOutput: vi.fn(),
                 readTemp: vi.fn(),
                 writeTemp: vi.fn().mockResolvedValue(undefined),
+                readFile: vi.fn(),
             };
 
             mockTranscriptionsCreate.mockResolvedValue({
@@ -221,6 +222,7 @@ describe('Complete Coverage Tests', () => {
                 writeOutput: vi.fn(),
                 readTemp: vi.fn(),
                 writeTemp: vi.fn().mockResolvedValue(undefined),
+                readFile: vi.fn(),
             };
 
             mockTranscriptionsCreate.mockResolvedValue({

@@ -52,6 +52,7 @@ export interface StorageAdapter {
   writeOutput(fileName: string, content: string): Promise<void>;
   readTemp(fileName: string): Promise<string>;
   writeTemp(fileName: string, content: string): Promise<void>;
+  readFile(fileName: string, encoding?: string): Promise<string>;
 }
 
 /**

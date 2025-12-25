@@ -29,4 +29,7 @@ output/
 .DS_Store
 Thumbs.db
 
+# KodrDriv cache files
+.kodrdriv-test-cache.json
+
 .env
