@@ -57,7 +57,7 @@ function createGetFileHistoryTool(): Tool {
 
             try {
                 const output = await run(command, { cwd: workingDir });
-                return output || 'No history found for specified files';
+                return output.stdout || 'No history found for specified files';
             } catch (error: any) {
                 throw new Error(`Failed to get file history: ${error.message}`);
             }
@@ -149,12 +149,13 @@ function createSearchCodebaseTool(): Tool {
                 const globPattern = fileTypes.length === 1
                     ? `*.${fileTypes[0]}`
                     : `*.{${fileTypes.join(',')}}`;
-                command += ` -- "${globPattern}"`;
+                // Don't quote the glob pattern - git needs it unquoted for proper pathspec matching
+                command += ` -- ${globPattern}`;
             }
 
             try {
                 const output = await run(command, { cwd: workingDir });
-                return output || 'No matches found';
+                return output.stdout || 'No matches found';
             } catch (error: any) {
                 // git grep returns exit code 1 when no matches found
                 if (error.message.includes('exit code 1')) {
@@ -262,8 +263,8 @@ function createGetFileDependenciesTool(): Tool {
                     try {
                         const command = `git grep -l "${pattern}"`;
                         const output = await run(command, { cwd: workingDir });
-                        if (output) {
-                            results.push(`Files importing ${filePath}:\n${output}`);
+                        if (output.stdout) {
+                            results.push(`Files importing ${filePath}:\n${output.stdout}`);
                             break; // Found matches, no need to try other patterns
                         }
                     } catch {
@@ -373,7 +374,7 @@ function createGetRecentCommitsTool(): Tool {
 
             try {
                 const output = await run(command, { cwd: workingDir });
-                return output || `No commits found in the specified time period (${since})`;
+                return output.stdout || `No commits found in the specified time period (${since})`;
             } catch (error: any) {
                 throw new Error(`Failed to get recent commits: ${error.message}`);
             }
