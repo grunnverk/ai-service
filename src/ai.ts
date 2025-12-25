@@ -17,6 +17,8 @@ export interface OpenAIOptions {
     openaiMaxOutputTokens?: number;
     storage?: StorageAdapter;
     logger?: Logger;
+    tools?: any[]; // OpenAI tool definitions
+    toolChoice?: 'auto' | 'none' | 'required' | { type: 'function'; function: { name: string } };
 }
 
 export interface TranscriptionOptions {
@@ -189,6 +191,12 @@ export async function createCompletion(
             response_format: options.responseFormat,
         };
 
+        // Add tools if provided
+        if (options.tools && options.tools.length > 0) {
+            apiOptions.tools = options.tools;
+            apiOptions.tool_choice = options.toolChoice || 'auto';
+        }
+
         // Add reasoning parameter if specified and model supports it
         if (options.openaiReasoning && (modelToUse.includes('gpt-5') || modelToUse.includes('o3'))) {
             apiOptions.reasoning_effort = options.openaiReasoning;
@@ -235,9 +243,35 @@ export async function createCompletion(
             logger.debug('Wrote response debug file to %s', debugFile);
         }
 
-        const response = completion.choices[0]?.message?.content?.trim();
+        const message = completion.choices[0]?.message;
+        if (!message) {
+            throw new OpenAIError('No response message received from OpenAI');
+        }
+
+        // If tools are being used, return the full message object (includes tool_calls)
+        if (options.tools && options.tools.length > 0) {
+            // Log elapsed time
+            const elapsedTimeFormatted = elapsedTime >= 1000
+                ? `${(elapsedTime / 1000).toFixed(1)}s`
+                : `${elapsedTime}ms`;
+            logger.info('   Time: %s', elapsedTimeFormatted);
+
+            // Log token usage if available
+            if (completion.usage) {
+                logger.info('   Token usage: %s prompt + %s completion = %s total',
+                    completion.usage.prompt_tokens?.toLocaleString() || '?',
+                    completion.usage.completion_tokens?.toLocaleString() || '?',
+                    completion.usage.total_tokens?.toLocaleString() || '?'
+                );
+            }
+
+            return message; // Return full message object for tool handling
+        }
+
+        // For non-tool calls, return content as string
+        const response = message.content?.trim();
         if (!response) {
-            throw new OpenAIError('No response received from OpenAI');
+            throw new OpenAIError('No response content received from OpenAI');
         }
 
         // Calculate and log response size

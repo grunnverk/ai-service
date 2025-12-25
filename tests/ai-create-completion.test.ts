@@ -88,7 +88,7 @@ describe('createCompletion', () => {
 
         await expect(
             createCompletion([{ role: 'user', content: 'test' }])
-        ).rejects.toThrow('No response received from OpenAI');
+        ).rejects.toThrow('No response content received from OpenAI');
     });
 
     it('should handle missing content in response', async () => {
@@ -99,7 +99,7 @@ describe('createCompletion', () => {
 
         await expect(
             createCompletion([{ role: 'user', content: 'test' }])
-        ).rejects.toThrow('No response received from OpenAI');
+        ).rejects.toThrow('No response content received from OpenAI');
     });
 
     it('should log request and response sizes', async () => {
