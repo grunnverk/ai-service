@@ -336,5 +336,378 @@ describe('Release Tools', () => {
             );
         });
     });
+
+    describe('get_file_history', () => {
+        it('should get file history with default parameters', async () => {
+            mockRun.mockResolvedValue({
+                stdout: 'abc1234 - Updated auth module (John, 2 days ago)\ndef5678 - Fixed bug (Jane, 5 days ago)',
+            });
+
+            const tool = tools.find(t => t.name === 'get_file_history')!;
+            const result = await tool.execute({ filePaths: ['src/auth.ts'] }, mockContext);
+
+            expect(mockRun).toHaveBeenCalledWith(
+                expect.stringContaining('git log'),
+                expect.objectContaining({ cwd: '/test/dir' })
+            );
+            expect(result).toContain('abc1234');
+        });
+
+        it('should handle custom limit for file history', async () => {
+            mockRun.mockResolvedValue({ stdout: 'commit history' });
+
+            const tool = tools.find(t => t.name === 'get_file_history')!;
+            await tool.execute({ filePaths: ['src/auth.ts'], limit: 20 }, mockContext);
+
+            expect(mockRun).toHaveBeenCalledWith(
+                expect.stringContaining('-n 20'),
+                expect.any(Object)
+            );
+        });
+
+        it('should support detailed format for file history', async () => {
+            mockRun.mockResolvedValue({
+                stdout: 'abc1234\nJohn Doe (john@example.com)\n2024-01-15\nCommit message\n\nBody',
+            });
+
+            const tool = tools.find(t => t.name === 'get_file_history')!;
+            const result = await tool.execute(
+                { filePaths: ['src/auth.ts'], format: 'detailed' },
+                mockContext
+            );
+
+            // The detailed format uses a different format string
+            expect(mockRun).toHaveBeenCalledWith(
+                expect.stringContaining('%H%n%an'),
+                expect.any(Object)
+            );
+            expect(result).toContain('abc1234');
+        });
+
+        it('should handle multiple file paths', async () => {
+            mockRun.mockResolvedValue({ stdout: 'history for multiple files' });
+
+            const tool = tools.find(t => t.name === 'get_file_history')!;
+            await tool.execute(
+                { filePaths: ['src/auth.ts', 'src/user.ts', 'src/api.ts'] },
+                mockContext
+            );
+
+            expect(mockRun).toHaveBeenCalledWith(
+                expect.stringContaining('src/auth.ts src/user.ts src/api.ts'),
+                expect.any(Object)
+            );
+        });
+
+        it('should handle git errors in file history', async () => {
+            mockRun.mockRejectedValue(new Error('file not found'));
+
+            const tool = tools.find(t => t.name === 'get_file_history')!;
+
+            await expect(tool.execute({ filePaths: ['nonexistent.ts'] }, mockContext)).rejects.toThrow(
+                'Failed to get file history'
+            );
+        });
+
+        it('should return appropriate message when no history found', async () => {
+            mockRun.mockResolvedValue({ stdout: '' });
+
+            const tool = tools.find(t => t.name === 'get_file_history')!;
+            const result = await tool.execute({ filePaths: ['src/new.ts'] }, mockContext);
+
+            expect(result).toBe('No history found for specified files');
+        });
+    });
+
+    describe('get_file_content', () => {
+        it('should get file content without line numbers', async () => {
+            (mockContext.storage.readFile as any).mockResolvedValue('export function foo() {\n  return 42;\n}');
+
+            const tool = tools.find(t => t.name === 'get_file_content')!;
+            const result = await tool.execute({ filePath: 'src/index.ts' }, mockContext);
+
+            expect(mockContext.storage.readFile).toHaveBeenCalledWith('src/index.ts', 'utf-8');
+            expect(result).toContain('export function foo()');
+        });
+
+        it('should include line numbers when requested', async () => {
+            (mockContext.storage.readFile as any).mockResolvedValue('line1\nline2\nline3');
+
+            const tool = tools.find(t => t.name === 'get_file_content')!;
+            const result = await tool.execute({ filePath: 'src/index.ts', includeLineNumbers: true }, mockContext);
+
+            expect(result).toContain('1: line1');
+            expect(result).toContain('2: line2');
+            expect(result).toContain('3: line3');
+        });
+
+        it('should handle read errors gracefully', async () => {
+            (mockContext.storage.readFile as any).mockRejectedValue(new Error('Permission denied'));
+
+            const tool = tools.find(t => t.name === 'get_file_content')!;
+
+            await expect(tool.execute({ filePath: 'src/index.ts' }, mockContext)).rejects.toThrow('Failed to read file');
+        });
+    });
+
+    describe('search_codebase', () => {
+        it('should search codebase with simple query', async () => {
+            mockRun.mockResolvedValue({ stdout: 'src/auth.ts:10: const user = getValue();' });
+
+            const tool = tools.find(t => t.name === 'search_codebase')!;
+            const result = await tool.execute({ query: 'getValue' }, mockContext);
+
+            expect(result).toContain('src/auth.ts');
+            expect(mockRun).toHaveBeenCalledWith(
+                expect.stringContaining('git grep'),
+                expect.any(Object)
+            );
+        });
+
+        it('should filter by file types', async () => {
+            mockRun.mockResolvedValue({ stdout: 'results' });
+
+            const tool = tools.find(t => t.name === 'search_codebase')!;
+            await tool.execute({ query: 'function', fileTypes: ['ts', 'js'] }, mockContext);
+
+            expect(mockRun).toHaveBeenCalledWith(
+                expect.stringContaining('*.ts'),
+                expect.any(Object)
+            );
+        });
+
+        it('should set custom context lines', async () => {
+            mockRun.mockResolvedValue({ stdout: 'results' });
+
+            const tool = tools.find(t => t.name === 'search_codebase')!;
+            await tool.execute({ query: 'export', contextLines: 5 }, mockContext);
+
+            expect(mockRun).toHaveBeenCalledWith(
+                expect.stringContaining('-C 5'),
+                expect.any(Object)
+            );
+        });
+
+        it('should handle no matches gracefully', async () => {
+            mockRun.mockRejectedValue(new Error('exit code 1 no matches found'));
+
+            const tool = tools.find(t => t.name === 'search_codebase')!;
+            const result = await tool.execute({ query: 'nonexistent_function' }, mockContext);
+
+            expect(result).toBe('No matches found');
+        });
+
+        it('should handle search errors', async () => {
+            mockRun.mockRejectedValue(new Error('invalid regex'));
+
+            const tool = tools.find(t => t.name === 'search_codebase')!;
+
+            await expect(tool.execute({ query: 'invalid[regex' }, mockContext)).rejects.toThrow('Search failed');
+        });
+    });
+
+    describe('get_related_tests', () => {
+        it('should find related test files', async () => {
+            (mockContext.storage.readFile as any)
+                .mockResolvedValueOnce('test content'); // src/auth.test.ts
+
+            const tool = tools.find(t => t.name === 'get_related_tests')!;
+            const result = await tool.execute({ filePaths: ['src/auth.ts'] }, mockContext);
+
+            expect(result).toContain('Found related test files');
+            expect(result).toContain('src/auth.test.ts');
+        });
+
+        it('should handle no related tests', async () => {
+            (mockContext.storage.readFile as any).mockRejectedValue(new Error('not found'));
+
+            const tool = tools.find(t => t.name === 'get_related_tests')!;
+            const result = await tool.execute({ filePaths: ['src/util.ts'] }, mockContext);
+
+            expect(result).toBe('No related test files found');
+        });
+    });
+
+    describe('get_file_dependencies', () => {
+        it('should find files importing a module', async () => {
+            mockRun.mockResolvedValue({
+                stdout: 'src/main.ts\nsrc/app.ts\n',
+            });
+
+            const tool = tools.find(t => t.name === 'get_file_dependencies')!;
+            const result = await tool.execute({ filePaths: ['src/auth.ts'] }, mockContext);
+
+            expect(result).toContain('Files importing src/auth.ts');
+            expect(result).toContain('src/main.ts');
+        });
+
+        it('should handle no dependencies', async () => {
+            mockRun.mockRejectedValue(new Error('exit code 1'));
+
+            const tool = tools.find(t => t.name === 'get_file_dependencies')!;
+            const result = await tool.execute({ filePaths: ['src/unused.ts'] }, mockContext);
+
+            expect(result).toBe('No files found that import the specified files');
+        });
+    });
+
+    describe('analyze_diff_section', () => {
+        it('should get expanded context around lines', async () => {
+            const fileContent = Array.from({ length: 50 }, (_, i) => `line ${i + 1}`).join('\n');
+            (mockContext.storage.readFile as any).mockResolvedValue(fileContent);
+
+            const tool = tools.find(t => t.name === 'analyze_diff_section')!;
+            const result = await tool.execute(
+                { filePath: 'src/main.ts', startLine: 20, endLine: 25 },
+                mockContext
+            );
+
+            expect(result).toContain('src/main.ts');
+            expect(result).toContain('line 20');
+        });
+
+        it('should use custom context lines', async () => {
+            const fileContent = Array.from({ length: 50 }, (_, i) => `line ${i + 1}`).join('\n');
+            (mockContext.storage.readFile as any).mockResolvedValue(fileContent);
+
+            const tool = tools.find(t => t.name === 'analyze_diff_section')!;
+            const result = await tool.execute(
+                { filePath: 'src/main.ts', startLine: 25, endLine: 25, contextLines: 5 },
+                mockContext
+            );
+
+            expect(result).toContain('line 20');
+            expect(result).toContain('line 25');
+            expect(result).toContain('line 30');
+        });
+
+        it('should handle boundary cases', async () => {
+            const fileContent = 'line1\nline2\nline3';
+            (mockContext.storage.readFile as any).mockResolvedValue(fileContent);
+
+            const tool = tools.find(t => t.name === 'analyze_diff_section')!;
+            const result = await tool.execute(
+                { filePath: 'src/main.ts', startLine: 1, endLine: 3, contextLines: 10 },
+                mockContext
+            );
+
+            expect(result).toContain('line1');
+            expect(result).toContain('line3');
+        });
+
+        it('should handle read errors', async () => {
+            (mockContext.storage.readFile as any).mockRejectedValue(new Error('file not found'));
+
+            const tool = tools.find(t => t.name === 'analyze_diff_section')!;
+
+            await expect(
+                tool.execute({ filePath: 'src/missing.ts', startLine: 1, endLine: 5 }, mockContext)
+            ).rejects.toThrow('Failed to analyze diff section');
+        });
+    });
+
+    describe('get_recent_commits', () => {
+        it('should get recent commits for files', async () => {
+            mockRun.mockResolvedValue({
+                stdout: 'abc1234 - Fixed auth issue (John, 2 days ago)\ndef5678 - Updated auth (Jane, 5 days ago)',
+            });
+
+            const tool = tools.find(t => t.name === 'get_recent_commits')!;
+            const result = await tool.execute({ filePaths: ['src/auth.ts'] }, mockContext);
+
+            expect(result).toContain('abc1234');
+            expect(mockRun).toHaveBeenCalledWith(
+                expect.stringContaining('git log'),
+                expect.any(Object)
+            );
+        });
+
+        it('should use custom time period', async () => {
+            mockRun.mockResolvedValue({ stdout: 'commits' });
+
+            const tool = tools.find(t => t.name === 'get_recent_commits')!;
+            await tool.execute({ filePaths: ['src/auth.ts'], since: '1 month ago' }, mockContext);
+
+            expect(mockRun).toHaveBeenCalledWith(
+                expect.stringContaining('1 month ago'),
+                expect.any(Object)
+            );
+        });
+
+        it('should handle custom limit', async () => {
+            mockRun.mockResolvedValue({ stdout: 'commits' });
+
+            const tool = tools.find(t => t.name === 'get_recent_commits')!;
+            await tool.execute({ filePaths: ['src/auth.ts'], limit: 15 }, mockContext);
+
+            expect(mockRun).toHaveBeenCalledWith(
+                expect.stringContaining('-n 15'),
+                expect.any(Object)
+            );
+        });
+
+        it('should handle no commits in time period', async () => {
+            mockRun.mockResolvedValue({ stdout: '' });
+
+            const tool = tools.find(t => t.name === 'get_recent_commits')!;
+            const result = await tool.execute({ filePaths: ['src/new.ts'], since: '1 year ago' }, mockContext);
+
+            expect(result).toContain('No commits found in the specified time period');
+        });
+
+        it('should handle git errors', async () => {
+            mockRun.mockRejectedValue(new Error('invalid ref'));
+
+            const tool = tools.find(t => t.name === 'get_recent_commits')!;
+
+            await expect(tool.execute({ filePaths: ['src/auth.ts'] }, mockContext)).rejects.toThrow(
+                'Failed to get recent commits'
+            );
+        });
+    });
+
+    describe('group_files_by_concern', () => {
+        it('should group files by category', async () => {
+            const tool = tools.find(t => t.name === 'group_files_by_concern')!;
+            const result = await tool.execute({
+                filePaths: [
+                    'src/auth.ts',
+                    'src/auth.test.ts',
+                    'src/utils.ts',
+                    'README.md',
+                    'package.json',
+                ],
+            });
+
+            expect(result).toContain('tests');
+            expect(result).toContain('documentation');
+            expect(result).toContain('dependencies');
+            expect(result).toContain('source');
+        });
+
+        it('should handle single concern', async () => {
+            const tool = tools.find(t => t.name === 'group_files_by_concern')!;
+            const result = await tool.execute({
+                filePaths: ['src/auth.ts', 'src/user.ts'],
+            });
+
+            expect(result).toContain('All files appear to be related to a single concern');
+        });
+
+        it('should suggest splits for multiple concerns', async () => {
+            const tool = tools.find(t => t.name === 'group_files_by_concern')!;
+            const result = await tool.execute({
+                filePaths: [
+                    'src/auth.ts',
+                    'src/auth.test.ts',
+                    'README.md',
+                    'docs/guide.md',
+                    'package.json',
+                ],
+            });
+
+            expect(result).toContain('groups represent different concerns');
+        });
+    });
 });
 
