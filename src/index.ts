@@ -16,6 +16,8 @@ export * from './prompts';
 // Agentic functionality
 export * from './agentic/executor';
 export * from './agentic/commit';
+export * from './agentic/release';
 export * from './tools/types';
 export * from './tools/registry';
 export * from './tools/commit-tools';
+export * from './tools/release-tools';
