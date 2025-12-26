@@ -216,7 +216,7 @@ describe('Commit Tools', () => {
             );
 
             expect(vi.mocked(mockRun)).toHaveBeenCalledWith(
-                'git log --format=%h - %s (%an, %ar) -n 5 -- src/test.ts src/util.ts',
+                'git log --format="%h - %s (%an, %ar)" -n 5 -- src/test.ts src/util.ts',
                 { cwd: '/test' }
             );
             expect(result).toBe(mockLog);
@@ -234,7 +234,7 @@ describe('Commit Tools', () => {
             );
 
             expect(vi.mocked(mockRun)).toHaveBeenCalledWith(
-                expect.stringContaining('--format=%H%n%an'),
+                expect.stringContaining('--format="%H'),
                 expect.any(Object)
             );
         });

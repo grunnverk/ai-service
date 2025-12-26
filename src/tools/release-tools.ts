@@ -56,7 +56,8 @@ function createGetFileHistoryTool(): Tool {
             const { filePaths, limit = 10, format = 'summary' } = params;
             const workingDir = context?.workingDirectory || process.cwd();
 
-            const formatArg = format === 'detailed' ? '--format=%H%n%an (%ae)%n%ad%n%s%n%n%b%n---' : '--format=%h - %s (%an, %ar)';
+            // Use proper shell quoting to avoid issues with parentheses in format strings
+            const formatArg = format === 'detailed' ? '--format="%H%n%an (%ae)%n%ad%n%s%n%n%b%n---"' : '--format="%h - %s (%an, %ar)"';
             const fileArgs = filePaths.join(' ');
             const command = `git log ${formatArg} -n ${limit} -- ${fileArgs}`;
 
