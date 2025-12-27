@@ -86,11 +86,8 @@ async function main() {
                 case 'c': { // Confirm
                     console.log('\n📝 Creating commit...');
 
-                    // Escape quotes in the commit message
-                    const escapedMessage = currentMessage.replace(/"/g, '\\"');
-
                     try {
-                        execSync(`git commit -m "${escapedMessage}"`, {
+                        execSync('git', ['commit', '-m', currentMessage], {
                             stdio: 'inherit',
                         });
                         console.log('✅ Commit created successfully!');
