@@ -25,6 +25,20 @@ function createGetFileHistoryTool(): Tool {
     return {
         name: 'get_file_history',
         description: 'Get git commit history for one or more files to understand their evolution and past changes',
+        category: 'Understanding',
+        cost: 'cheap',
+        examples: [
+            {
+                scenario: 'Check if file has recent refactoring',
+                params: { filePaths: ['src/auth.ts'], limit: 5 },
+                expectedResult: 'List of recent commits affecting auth.ts'
+            },
+            {
+                scenario: 'Understand evolution of multiple related files',
+                params: { filePaths: ['src/user.ts', 'src/auth.ts'], limit: 10, format: 'detailed' },
+                expectedResult: 'Detailed commit history for both files'
+            }
+        ],
         parameters: {
             type: 'object',
             properties: {
@@ -73,6 +87,20 @@ function createGetFileContentTool(): Tool {
     return {
         name: 'get_file_content',
         description: 'Get the complete current content of a file to understand context around changes. Returns a message if the file does not exist (e.g., if it was deleted).',
+        category: 'Understanding',
+        cost: 'moderate',
+        examples: [
+            {
+                scenario: 'See full class definition for modified method',
+                params: { filePath: 'src/services/auth.ts', includeLineNumbers: true },
+                expectedResult: 'Complete file content with line numbers'
+            },
+            {
+                scenario: 'Check imports and structure',
+                params: { filePath: 'src/utils/helpers.ts' },
+                expectedResult: 'Full file content showing imports and exports'
+            }
+        ],
         parameters: {
             type: 'object',
             properties: {
@@ -123,6 +151,20 @@ function createSearchCodebaseTool(): Tool {
     return {
         name: 'search_codebase',
         description: 'Search for code patterns, function names, or text across the codebase using git grep',
+        category: 'Analysis',
+        cost: 'moderate',
+        examples: [
+            {
+                scenario: 'Find all uses of a renamed function',
+                params: { query: 'oldFunctionName', fileTypes: ['ts', 'tsx'] },
+                expectedResult: 'List of files and lines containing the function'
+            },
+            {
+                scenario: 'Check if pattern exists elsewhere',
+                params: { query: 'pattern.*string', contextLines: 3 },
+                expectedResult: 'Matching lines with surrounding context'
+            }
+        ],
         parameters: {
             type: 'object',
             properties: {
@@ -177,6 +219,9 @@ function createGetRelatedTestsTool(): Tool {
     return {
         name: 'get_related_tests',
         description: 'Find test files related to production files to understand what the code is supposed to do',
+        category: 'Understanding',
+        cost: 'cheap',
+        examples: [{ scenario: 'Find tests for modified service', params: { filePaths: ['src/services/auth.ts'] }, expectedResult: 'List of related test files' }],
         parameters: {
             type: 'object',
             properties: {
@@ -234,6 +279,9 @@ function createGetFileDependenciesTool(): Tool {
     return {
         name: 'get_file_dependencies',
         description: 'Find which files import or depend on the changed files to assess change impact',
+        category: 'Analysis',
+        cost: 'moderate',
+        examples: [{ scenario: 'Check impact of util function change', params: { filePaths: ['src/utils/format.ts'] }, expectedResult: 'Files that import format.ts' }],
         parameters: {
             type: 'object',
             properties: {
@@ -290,6 +338,9 @@ function createAnalyzeDiffSectionTool(): Tool {
     return {
         name: 'analyze_diff_section',
         description: 'Get expanded context around specific lines in a file to better understand changes',
+        category: 'Understanding',
+        cost: 'cheap',
+        examples: [{ scenario: 'See context around confusing change', params: { filePath: 'src/auth.ts', startLine: 45, endLine: 52, contextLines: 15 }, expectedResult: 'Expanded code section with context' }],
         parameters: {
             type: 'object',
             properties: {
@@ -347,6 +398,9 @@ function createGetRecentCommitsTool(): Tool {
     return {
         name: 'get_recent_commits',
         description: 'Get recent commits that modified the same files to understand recent work in this area',
+        category: 'Understanding',
+        cost: 'cheap',
+        examples: [{ scenario: 'Check for duplicate commit messages', params: { filePaths: ['src/auth.ts'], since: '1 week ago', limit: 5 }, expectedResult: 'Recent commits to auth.ts' }],
         parameters: {
             type: 'object',
             properties: {
@@ -392,6 +446,15 @@ function createGroupFilesByConcernTool(): Tool {
     return {
         name: 'group_files_by_concern',
         description: 'Analyze changed files and suggest logical groupings that might represent separate commits',
+        category: 'Organization',
+        cost: 'cheap',
+        examples: [
+            {
+                scenario: 'Check if multiple unrelated changes should be split',
+                params: { filePaths: ['src/auth.ts', 'README.md', 'tests/auth.test.ts', 'package.json'] },
+                expectedResult: 'Files grouped by concern with split suggestions'
+            }
+        ],
         parameters: {
             type: 'object',
             properties: {

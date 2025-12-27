@@ -2,6 +2,7 @@ import type { ChatCompletionMessageParam } from 'openai/resources';
 import { createCompletionWithRetry } from '../ai';
 import type { ToolRegistry } from '../tools/registry';
 import type { ToolResult } from '../tools/types';
+import { ConversationBuilder, type Model } from '@riotprompt/riotprompt';
 
 export interface AgenticConfig {
     messages: ChatCompletionMessageParam[];
@@ -14,6 +15,13 @@ export interface AgenticConfig {
     storage?: any;
     logger?: any;
     openaiReasoning?: 'low' | 'medium' | 'high';
+    // Token budget configuration
+    tokenBudget?: {
+        max: number;
+        reserveForResponse?: number;
+        strategy?: 'priority-based' | 'fifo' | 'summarize' | 'adaptive';
+        onBudgetExceeded?: 'compress' | 'error' | 'warn' | 'truncate';
+    };
 }
 
 export interface ToolExecutionMetric {
@@ -45,7 +53,7 @@ export class AgenticExecutor {
     }
 
     /**
-     * Run the agentic loop
+     * Run the agentic loop with ConversationBuilder
      */
     async run(config: AgenticConfig): Promise<AgenticResult> {
         const {
@@ -59,21 +67,47 @@ export class AgenticExecutor {
             storage,
             logger,
             openaiReasoning = false,
+            tokenBudget,
         } = config;
 
-        const messages = [...initialMessages];
+        // Create ConversationBuilder for better state management
+        const conversation = ConversationBuilder.create({ model: model as Model }, logger);
+
+        // Add initial messages to conversation
+        for (const msg of initialMessages) {
+            if (msg.role === 'system') {
+                conversation.addSystemMessage(msg.content as string);
+            } else if (msg.role === 'user') {
+                conversation.addUserMessage(msg.content as string);
+            }
+        }
+
+        // Configure token budget if provided
+        if (tokenBudget) {
+            this.log('Configuring token budget', tokenBudget);
+            conversation.withTokenBudget({
+                max: tokenBudget.max,
+                reserveForResponse: tokenBudget.reserveForResponse || 4000,
+                strategy: tokenBudget.strategy || 'fifo',
+                onBudgetExceeded: tokenBudget.onBudgetExceeded || 'compress'
+            });
+        }
+
         let iterations = 0;
         let toolCallsExecuted = 0;
 
-        this.log('Starting agentic loop', { maxIterations, toolCount: tools.count() });
+        this.log('Starting agentic loop with ConversationBuilder', { maxIterations, toolCount: tools.count() });
 
         while (iterations < maxIterations) {
             iterations++;
             this.log(`Iteration ${iterations}/${maxIterations}`);
 
+            // Get current messages from conversation
+            const messages = conversation.toMessages();
+
             // Call LLM with tools available
             const response = await createCompletionWithRetry(
-                messages,
+                messages as ChatCompletionMessageParam[],
                 {
                     model,
                     openaiReasoning: openaiReasoning || undefined,
@@ -96,25 +130,19 @@ export class AgenticExecutor {
                 // No tool calls, agent is done
                 const finalContent = message.content || '';
                 this.log('Agent completed without tool calls', { iterations, toolCallsExecuted });
-                messages.push({
-                    role: 'assistant',
-                    content: finalContent,
-                });
+                conversation.addAssistantMessage(finalContent);
+
                 return {
                     finalMessage: finalContent,
                     iterations,
                     toolCallsExecuted,
-                    conversationHistory: messages,
+                    conversationHistory: conversation.toMessages() as ChatCompletionMessageParam[],
                     toolMetrics: this.toolMetrics,
                 };
             }
 
-            // Add assistant message with tool calls
-            messages.push({
-                role: 'assistant',
-                content: message.content || null,
-                tool_calls: toolCalls,
-            });
+            // Add assistant message with tool calls to conversation
+            conversation.addAssistantWithToolCalls(message.content || null, toolCalls as any);
 
             // Execute tool calls
             this.log(`Executing ${toolCalls.length} tool call(s)`);
@@ -131,20 +159,22 @@ export class AgenticExecutor {
                         this.logger.info(`🔧 Running tool: ${toolName}`);
                     }
 
-                    // Parse arguments
-                    const args = JSON.parse(toolCall.function.arguments);
+                    // Parse arguments with error handling
+                    let args: any;
+                    try {
+                        args = JSON.parse(toolCall.function.arguments);
+                    } catch (parseError: any) {
+                        throw new Error(`Failed to parse tool arguments: ${parseError.message}`);
+                    }
 
                     // Execute the tool
                     const result = await tools.execute(toolName, args);
 
                     const duration = Date.now() - startTime;
 
-                    // Add tool result to conversation
-                    messages.push({
-                        role: 'tool',
-                        tool_call_id: toolCall.id,
-                        content: this.formatToolResult({ id: toolCall.id, name: toolName, result }),
-                    });
+                    // Add tool result to conversation using ConversationBuilder
+                    const formattedResult = this.formatToolResult({ id: toolCall.id, name: toolName, result });
+                    conversation.addToolResult(toolCall.id, formattedResult, toolName);
 
                     toolCallsExecuted++;
 
@@ -182,12 +212,8 @@ export class AgenticExecutor {
                         this.logger.warn(`❌ Tool ${toolName} failed: ${errorMessage}`);
                     }
 
-                    // Add error result to conversation
-                    messages.push({
-                        role: 'tool',
-                        tool_call_id: toolCall.id,
-                        content: `Tool execution failed: ${errorMessage}`,
-                    });
+                    // Add error result to conversation using ConversationBuilder
+                    conversation.addToolResult(toolCall.id, `Tool execution failed: ${errorMessage}`, toolName);
                 }
             }
 
@@ -198,13 +224,11 @@ export class AgenticExecutor {
         this.log('Max iterations reached, forcing completion', { iterations, toolCallsExecuted });
 
         // Make one final call without tools to get a synthesized response
-        messages.push({
-            role: 'user',
-            content: 'Please provide your final analysis and commit message based on your investigation. Do not request any more tools.',
-        });
+        conversation.addUserMessage('Please provide your final analysis based on your investigation. Do not request any more tools.');
 
+        const finalMessages = conversation.toMessages();
         const finalResponse = await createCompletionWithRetry(
-            messages,
+            finalMessages as ChatCompletionMessageParam[],
             {
                 model,
                 openaiReasoning: openaiReasoning || undefined,
@@ -214,16 +238,13 @@ export class AgenticExecutor {
             }
         );
 
-        messages.push({
-            role: 'assistant',
-            content: finalResponse,
-        });
+        conversation.addAssistantMessage(finalResponse);
 
         return {
             finalMessage: finalResponse,
             iterations,
             toolCallsExecuted,
-            conversationHistory: messages,
+            conversationHistory: conversation.toMessages() as ChatCompletionMessageParam[],
             toolMetrics: this.toolMetrics,
         };
     }

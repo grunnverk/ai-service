@@ -146,7 +146,10 @@ export async function createCompletion(
         }
 
         // Create the client which we'll close in the finally block.
-        const timeoutMs = parseInt(process.env.OPENAI_TIMEOUT_MS || '300000'); // Default to 5 minutes
+        const timeoutMs = parseInt(process.env.OPENAI_TIMEOUT_MS || '300000', 10); // Default to 5 minutes
+        if (isNaN(timeoutMs) || timeoutMs <= 0) {
+            throw new OpenAIError('Invalid OPENAI_TIMEOUT_MS value - must be a positive number');
+        }
         openai = new OpenAI({
             apiKey: apiKey,
             timeout: timeoutMs,
@@ -209,8 +212,9 @@ export async function createCompletion(
         // Create timeout promise with proper cleanup to prevent memory leaks
         let timeoutId: NodeJS.Timeout | null = null;
         const timeoutPromise = new Promise<never>((_, reject) => {
-            const timeoutMs = parseInt(process.env.OPENAI_TIMEOUT_MS || '300000'); // Default to 5 minutes
-            timeoutId = setTimeout(() => reject(new OpenAIError(`OpenAI API call timed out after ${timeoutMs/1000} seconds`)), timeoutMs);
+            const timeoutMs = parseInt(process.env.OPENAI_TIMEOUT_MS || '300000', 10); // Default to 5 minutes
+            const validTimeout = isNaN(timeoutMs) || timeoutMs <= 0 ? 300000 : timeoutMs;
+            timeoutId = setTimeout(() => reject(new OpenAIError(`OpenAI API call timed out after ${validTimeout/1000} seconds`)), validTimeout);
         });
 
         // Add progress indicator that updates every 5 seconds

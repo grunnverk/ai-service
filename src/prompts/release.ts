@@ -1,6 +1,7 @@
-import { ContentItem, Prompt, recipe } from '@riotprompt/riotprompt';
+import { Prompt, cook, type ContentItem } from '@riotprompt/riotprompt';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { TemplateNames } from './templates';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -100,14 +101,15 @@ export const createReleasePrompt = async (
         contextItems.push({ directories, title: 'Directories' });
     }
 
-    const prompt = await recipe(basePath)
-        .persona({ path: 'personas/releaser.md' })
-        .instructions({ path: 'instructions/release.md' })
-        .overridePaths(_overridePaths ?? [])
-        .overrides(_overrides ?? true)
-        .content(...contentItems)
-        .context(...contextItems)
-        .cook();
+    // Use declarative cook() API with registered template
+    const prompt = await cook({
+        basePath,
+        template: TemplateNames.RELEASE,
+        overridePaths: _overridePaths ?? [],
+        overrides: _overrides ?? true,
+        content: contentItems,
+        context: contextItems
+    });
 
     return {
         prompt,

@@ -3,6 +3,7 @@ import { runAgentic, type AgenticConfig, type ToolExecutionMetric } from './exec
 import { createToolRegistry } from '../tools/registry';
 import { createReleaseTools } from '../tools/release-tools';
 import type { StorageAdapter, Logger } from '../types';
+import { generateToolGuidance } from '@riotprompt/riotprompt';
 
 export interface AgenticReleaseConfig {
     fromRef: string;
@@ -20,6 +21,12 @@ export interface AgenticReleaseConfig {
     storage?: StorageAdapter;
     logger?: Logger;
     openaiReasoning?: 'low' | 'medium' | 'high';
+    tokenBudget?: {
+        max: number;
+        reserveForResponse?: number;
+        strategy?: 'priority-based' | 'fifo' | 'summarize' | 'adaptive';
+        onBudgetExceeded?: 'compress' | 'error' | 'warn' | 'truncate';
+    };
 }
 
 export interface AgenticReleaseResult {
@@ -53,6 +60,7 @@ export async function runAgenticRelease(config: AgenticReleaseConfig): Promise<A
         storage,
         logger,
         openaiReasoning,
+        tokenBudget,
     } = config;
 
     // Create tool registry with context
@@ -66,8 +74,16 @@ export async function runAgenticRelease(config: AgenticReleaseConfig): Promise<A
     const tools = createReleaseTools();
     toolRegistry.registerAll(tools);
 
-    // Build initial system prompt
-    const systemPrompt = buildSystemPrompt();
+    // Generate automatic tool guidance from riotprompt
+    const toolGuidance = generateToolGuidance(tools, {
+        strategy: 'adaptive',
+        includeExamples: true,
+        explainWhenToUse: true,
+        includeCategories: true,
+    });
+
+    // Build initial system prompt with tool guidance
+    const systemPrompt = buildSystemPrompt(toolGuidance);
 
     // Build initial user message
     const userMessage = buildUserMessage({
@@ -86,7 +102,7 @@ export async function runAgenticRelease(config: AgenticReleaseConfig): Promise<A
         { role: 'user', content: userMessage },
     ];
 
-    // Run agentic loop
+    // Run agentic loop with token budget (larger for release notes)
     const agenticConfig: AgenticConfig = {
         messages,
         tools: toolRegistry,
@@ -98,6 +114,12 @@ export async function runAgenticRelease(config: AgenticReleaseConfig): Promise<A
         storage,
         logger,
         openaiReasoning,
+        tokenBudget: tokenBudget || {
+            max: 200000,
+            reserveForResponse: 8000,
+            strategy: 'fifo',
+            onBudgetExceeded: 'compress'
+        },
     };
 
     const result = await runAgentic(agenticConfig);
@@ -117,17 +139,10 @@ export async function runAgenticRelease(config: AgenticReleaseConfig): Promise<A
 /**
  * Build the system prompt for agentic release notes generation
  */
-function buildSystemPrompt(): string {
+function buildSystemPrompt(toolGuidance: string): string {
     return `You are an expert software engineer and technical writer tasked with generating comprehensive, thoughtful release notes.
 
-You have access to tools to investigate the release in depth. Use them strategically:
-
-## Investigation Tools
-
-**Understanding Context & History:**
-- get_file_history: Use when you need to understand how a file evolved. Good for: seeing if a refactor is part of a larger pattern, understanding why certain decisions were made
-- get_recent_commits: Use to see what happened to files recently. Good for: detecting related work, understanding if this is part of an ongoing effort
-- compare_previous_release: Use to contextualize scope. Good for: comparing size/impact of this release vs previous ones, identifying if this is major/minor
+${toolGuidance}
 - get_tag_history: Use early to understand release cadence. Good for: establishing context about project versioning patterns
 
 **Analyzing Current Changes:**
@@ -241,10 +256,16 @@ function parseAgenticResult(finalMessage: string): {
     if (jsonMatch) {
         try {
             const jsonStr = jsonMatch[1].trim();
-            // Try to parse the JSON
-            const parsed = JSON.parse(jsonStr);
+            // Try to parse the JSON with error handling
+            let parsed: any;
+            try {
+                parsed = JSON.parse(jsonStr);
+            } catch {
+                // Failed to parse JSON, will use fallback parsing below
+                parsed = null;
+            }
 
-            if (parsed.title && parsed.body) {
+            if (parsed && parsed.title && parsed.body) {
                 return {
                     releaseNotes: {
                         title: parsed.title,

@@ -1,6 +1,7 @@
-import { Prompt, recipe } from '@riotprompt/riotprompt';
+import { Prompt, cook, type ContentItem } from '@riotprompt/riotprompt';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { TemplateNames } from './templates';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -43,8 +44,8 @@ export const createCommitPrompt = async (
     const basePath = __dirname;
 
     // Build content items for the prompt
-    const contentItems = [];
-    const contextItems = [];
+    const contentItems: ContentItem[] = [];
+    const contextItems: ContentItem[] = [];
 
     // Developer Note: Direction is injected first as the highest-priority prompt input
     // This ensures user guidance takes precedence over other context sources like
@@ -73,13 +74,14 @@ export const createCommitPrompt = async (
         contextItems.push({ directories, title: 'Directories' });
     }
 
-    return recipe(basePath)
-        .persona({ path: 'personas/you.md' })
-        .instructions({ path: 'instructions/commit.md' })
-        .overridePaths(_overridePaths ?? [])
-        .overrides(_overrides ?? true)
-        .content(...contentItems)
-        .context(...contextItems)
-        .cook();
+    // Use declarative cook() API with registered template
+    return cook({
+        basePath,
+        template: TemplateNames.COMMIT,
+        overridePaths: _overridePaths ?? [],
+        overrides: _overrides ?? true,
+        content: contentItems,
+        context: contextItems
+    });
 };
 

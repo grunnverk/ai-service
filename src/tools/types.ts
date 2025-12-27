@@ -22,6 +22,22 @@ export interface ToolDefinition {
     };
 }
 
+/**
+ * Tool example showing when and how to use the tool
+ * Matches riotprompt's ToolExample interface
+ */
+export interface ToolExample {
+    scenario: string;
+    params: any;
+    expectedResult: string;
+}
+
+/**
+ * Tool cost indicator for guidance
+ * Using riotprompt's cost levels
+ */
+export type ToolCost = 'cheap' | 'moderate' | 'expensive';
+
 export interface Tool {
     name: string;
     description: string;
@@ -31,6 +47,11 @@ export interface Tool {
         required?: string[];
     };
     execute: (params: any, context?: ToolContext) => Promise<any>;
+
+    // Enhanced metadata for riotprompt integration
+    category?: string; // Tool category for grouping (e.g., 'Understanding', 'Analysis')
+    cost?: ToolCost; // Execution cost hint (low/medium/high)
+    examples?: ToolExample[]; // Usage examples
 }
 
 export interface ToolContext {

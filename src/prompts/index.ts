@@ -5,6 +5,7 @@
 export * from './commit';
 export * from './release';
 export * from './review';
+export * from './templates';
 
 // Re-export types for convenience
 export type {

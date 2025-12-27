@@ -3,6 +3,7 @@ import { runAgentic, type AgenticConfig, type ToolExecutionMetric } from './exec
 import { createToolRegistry } from '../tools/registry';
 import { createCommitTools } from '../tools/commit-tools';
 import type { StorageAdapter, Logger } from '../types';
+import { generateToolGuidance } from '@riotprompt/riotprompt';
 
 export interface AgenticCommitConfig {
     changedFiles: string[];
@@ -17,6 +18,12 @@ export interface AgenticCommitConfig {
     storage?: StorageAdapter;
     logger?: Logger;
     openaiReasoning?: 'low' | 'medium' | 'high';
+    tokenBudget?: {
+        max: number;
+        reserveForResponse?: number;
+        strategy?: 'priority-based' | 'fifo' | 'summarize' | 'adaptive';
+        onBudgetExceeded?: 'compress' | 'error' | 'warn' | 'truncate';
+    };
 }
 
 export interface AgenticCommitResult {
@@ -49,6 +56,7 @@ export async function runAgenticCommit(config: AgenticCommitConfig): Promise<Age
         storage,
         logger,
         openaiReasoning,
+        tokenBudget,
     } = config;
 
     // Create tool registry with context
@@ -62,8 +70,16 @@ export async function runAgenticCommit(config: AgenticCommitConfig): Promise<Age
     const tools = createCommitTools();
     toolRegistry.registerAll(tools);
 
-    // Build initial system prompt
-    const systemPrompt = buildSystemPrompt();
+    // Generate automatic tool guidance from riotprompt
+    const toolGuidance = generateToolGuidance(tools, {
+        strategy: 'adaptive',
+        includeExamples: true,
+        explainWhenToUse: true,
+        includeCategories: true,
+    });
+
+    // Build initial system prompt with tool guidance
+    const systemPrompt = buildSystemPrompt(toolGuidance);
 
     // Build initial user message
     const userMessage = buildUserMessage(changedFiles, diffContent, userDirection, logContext);
@@ -74,7 +90,7 @@ export async function runAgenticCommit(config: AgenticCommitConfig): Promise<Age
         { role: 'user', content: userMessage },
     ];
 
-    // Run agentic loop
+    // Run agentic loop with optional token budget
     const agenticConfig: AgenticConfig = {
         messages,
         tools: toolRegistry,
@@ -86,6 +102,12 @@ export async function runAgenticCommit(config: AgenticCommitConfig): Promise<Age
         storage,
         logger,
         openaiReasoning,
+        tokenBudget: tokenBudget || {
+            max: 150000,
+            reserveForResponse: 4000,
+            strategy: 'fifo',
+            onBudgetExceeded: 'compress'
+        },
     };
 
     const result = await runAgentic(agenticConfig);
@@ -106,26 +128,10 @@ export async function runAgenticCommit(config: AgenticCommitConfig): Promise<Age
 /**
  * Build the system prompt for agentic commit generation
  */
-function buildSystemPrompt(): string {
+function buildSystemPrompt(toolGuidance: string): string {
     return `You are an expert software engineer tasked with generating meaningful commit messages.
 
-You have access to tools to understand changes deeply. Use them strategically based on what you see:
-
-## When to Use Each Tool
-
-**Understanding What Changed:**
-- get_file_content: Use when you need full context. Good for: seeing entire class/function being modified, checking imports, understanding overall structure
-- analyze_diff_section: Use when diff is confusing. Good for: expanding context around small changes, seeing how code integrates
-- get_file_dependencies: Use for import/refactor changes. Good for: understanding what's being moved/reorganized, checking dependency impact
-
-**Understanding Why:**
-- get_file_history: Use to see evolution. Good for: understanding if this continues previous work, checking for patterns
-- get_recent_commits: Use to check recent context. Good for: avoiding duplicate messages, understanding if this is part of a series
-- search_codebase: Use to understand usage. Good for: seeing if changes affect multiple places, finding patterns
-
-**Organizing Changes:**
-- group_files_by_concern: Use when multiple files changed. Good for: identifying logical groupings, determining if split is needed
-- get_related_tests: Use for logic changes. Good for: understanding intent from test changes, verifying behavior changes
+${toolGuidance}
 
 ## Investigation Strategy
 

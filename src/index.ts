@@ -17,7 +17,12 @@ export * from './prompts';
 export * from './agentic/executor';
 export * from './agentic/commit';
 export * from './agentic/release';
+export * from './agentic/publish';
 export * from './tools/types';
 export * from './tools/registry';
 export * from './tools/commit-tools';
 export * from './tools/release-tools';
+export * from './tools/publish-tools';
+
+// Observability
+export * from './observability';

@@ -38,6 +38,8 @@ describe('runAgenticCommit', () => {
             info: vi.fn(),
             warn: vi.fn(),
             error: vi.fn(),
+            verbose: vi.fn(),
+            silly: vi.fn(),
         };
     });
 
@@ -231,10 +233,12 @@ feat: Add new feature to the system`,
 
             const call = (runAgentic as any).mock.calls[0][0];
             const systemPrompt = call.messages[0].content;
-            expect(systemPrompt).toContain('get_file_history');
-            expect(systemPrompt).toContain('get_file_content');
-            expect(systemPrompt).toContain('analyze_diff_section');
-            expect(systemPrompt).toContain('conventional commit format');
+            // Since we now use automatic tool guidance generation from riotprompt,
+            // verify the system prompt structure includes both auto-generated
+            // tool documentation and our custom strategy guidance
+            expect(systemPrompt).toContain('Investigation Strategy'); // Our custom strategy section
+            expect(systemPrompt).toContain('conventional commit format'); // Guidelines
+            expect(systemPrompt.length).toBeGreaterThan(500); // Should include substantial tool guidance
         });
     });
 

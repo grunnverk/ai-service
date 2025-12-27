@@ -1,6 +1,7 @@
-import { ContentItem, Prompt, recipe } from '@riotprompt/riotprompt';
+import { Prompt, cook, type ContentItem } from '@riotprompt/riotprompt';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { TemplateNames } from './templates';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -60,13 +61,14 @@ export const createReviewPrompt = async (
         contextItems.push({ directories, title: 'Directories' });
     }
 
-    return recipe(basePath)
-        .persona({ path: 'personas/you.md' })
-        .instructions({ path: 'instructions/review.md' })
-        .overridePaths(_overridePaths ?? [])
-        .overrides(_overrides ?? true)
-        .content(...contentItems)
-        .context(...contextItems)
-        .cook();
+    // Use declarative cook() API with registered template
+    return cook({
+        basePath,
+        template: TemplateNames.REVIEW,
+        overridePaths: _overridePaths ?? [],
+        overrides: _overrides ?? true,
+        content: contentItems,
+        context: contextItems
+    });
 };
 

@@ -28,6 +28,8 @@ describe('Commit Tools', () => {
             error: vi.fn(),
             warn: vi.fn(),
             debug: vi.fn(),
+            verbose: vi.fn(),
+            silly: vi.fn(),
         };
     });
 

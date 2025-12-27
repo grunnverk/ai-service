@@ -463,6 +463,9 @@ function createGetTagHistoryTool(): Tool {
     return {
         name: 'get_tag_history',
         description: 'Get the history of previous release tags to understand release patterns and versioning',
+        category: 'Release Analysis',
+        cost: 'cheap',
+        examples: [{ scenario: 'Check recent version tags', params: { limit: 5, pattern: 'v*' }, expectedResult: 'List of recent version tags with dates' }],
         parameters: {
             type: 'object',
             properties: {
@@ -521,6 +524,9 @@ function createComparePreviousReleaseTool(): Tool {
     return {
         name: 'compare_previous_release',
         description: 'Compare this release with a previous release to understand what changed between versions',
+        category: 'Release Analysis',
+        cost: 'moderate',
+        examples: [{ scenario: 'Compare with last release', params: { previousTag: 'v1.0.0', currentRef: 'HEAD' }, expectedResult: 'Commit count and file change statistics' }],
         parameters: {
             type: 'object',
             properties: {
@@ -580,6 +586,9 @@ function createGetReleaseStatsTool(): Tool {
     return {
         name: 'get_release_stats',
         description: 'Get comprehensive statistics about the release including contributors, file changes, and commit patterns',
+        category: 'Release Analysis',
+        cost: 'moderate',
+        examples: [{ scenario: 'Get release overview', params: { fromRef: 'v1.0.0', toRef: 'HEAD' }, expectedResult: 'Contributors, file changes, and top modified files' }],
         parameters: {
             type: 'object',
             properties: {
@@ -642,6 +651,9 @@ function createGetBreakingChangesTool(): Tool {
     return {
         name: 'get_breaking_changes',
         description: 'Search for potential breaking changes by looking for specific patterns in commits and diffs',
+        category: 'Release Analysis',
+        cost: 'expensive',
+        examples: [{ scenario: 'Check for breaking changes', params: { fromRef: 'v1.0.0', toRef: 'HEAD' }, expectedResult: 'List of potential breaking changes found' }],
         parameters: {
             type: 'object',
             properties: {
@@ -714,6 +726,9 @@ function createAnalyzeCommitPatternsTool(): Tool {
     return {
         name: 'analyze_commit_patterns',
         description: 'Analyze commit messages to identify patterns and themes in the release',
+        category: 'Release Analysis',
+        cost: 'cheap',
+        examples: [{ scenario: 'Find commit themes', params: { fromRef: 'v1.0.0', toRef: 'HEAD' }, expectedResult: 'Commit types and top keywords' }],
         parameters: {
             type: 'object',
             properties: {

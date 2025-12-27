@@ -25,6 +25,8 @@ describe('AgenticExecutor', () => {
             info: vi.fn(),
             warn: vi.fn(),
             error: vi.fn(),
+            verbose: vi.fn(),
+            silly: vi.fn(),
         };
 
         // Create mock tool registry
@@ -519,7 +521,14 @@ describe('runAgentic', () => {
     });
 
     it('should pass logger through to executor', async () => {
-        const mockLogger = { debug: vi.fn() };
+        const mockLogger = {
+            debug: vi.fn(),
+            info: vi.fn(),
+            warn: vi.fn(),
+            error: vi.fn(),
+            verbose: vi.fn(),
+            silly: vi.fn()
+        };
 
         const config: AgenticConfig = {
             messages: [{ role: 'user', content: 'Query' }],
