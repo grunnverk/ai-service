@@ -72,7 +72,7 @@ function createGetFileHistoryTool(): Tool {
 function createGetFileContentTool(): Tool {
     return {
         name: 'get_file_content',
-        description: 'Get the complete current content of a file to understand context around changes',
+        description: 'Get the complete current content of a file to understand context around changes. Returns a message if the file does not exist (e.g., if it was deleted).',
         parameters: {
             type: 'object',
             properties: {
@@ -106,6 +106,10 @@ function createGetFileContentTool(): Tool {
 
                 return content;
             } catch (error: any) {
+                // Handle file not found gracefully - common for deleted files in diffs
+                if (error.code === 'ENOENT' || error.message?.includes('ENOENT')) {
+                    return `File not found: ${filePath}\n\nThis file may have been deleted in this release or does not exist in the current working tree. Check the diff to see if this file was removed.`;
+                }
                 throw new Error(`Failed to read file: ${error.message}`);
             }
         },
@@ -147,7 +151,7 @@ function createSearchCodebaseTool(): Tool {
             let command = `git grep -n -C ${contextLines} "${query}"`;
 
             if (fileTypes && fileTypes.length > 0) {
-                // Use separate quoted patterns for each file type to avoid shell expansion issues
+                // Add glob patterns for each file type with proper quoting
                 const patterns = fileTypes.map(ext => `'*.${ext}'`).join(' ');
                 command += ` -- ${patterns}`;
             }
@@ -157,7 +161,7 @@ function createSearchCodebaseTool(): Tool {
                 return output.stdout || 'No matches found';
             } catch (error: any) {
                 // git grep returns exit code 1 when no matches found
-                if (error.message.includes('exit code 1')) {
+                if (error.message.includes('exit code 1') || error.stderr?.includes('did not match any file')) {
                     return 'No matches found';
                 }
                 throw new Error(`Search failed: ${error.message}`);

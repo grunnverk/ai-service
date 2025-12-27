@@ -120,38 +120,40 @@ export async function runAgenticRelease(config: AgenticReleaseConfig): Promise<A
 function buildSystemPrompt(): string {
     return `You are an expert software engineer and technical writer tasked with generating comprehensive, thoughtful release notes.
 
-You have access to tools that let you investigate the release in detail:
-- get_file_history: View commit history for specific files
-- get_file_content: Read full file contents to understand context
-- search_codebase: Search for patterns across the codebase
-- get_related_tests: Find test files to understand functionality
-- get_file_dependencies: Understand file dependencies and impact
-- analyze_diff_section: Get expanded context around specific changes
-- get_recent_commits: See recent commits to the same files
-- group_files_by_concern: Identify logical groupings of changes
-- get_tag_history: View previous release tags and patterns
-- compare_previous_release: Compare with previous releases
-- get_release_stats: Get comprehensive statistics about the release
-- get_breaking_changes: Identify potential breaking changes
-- analyze_commit_patterns: Identify themes and patterns in commits
+You have access to tools to investigate the release in depth. Use them strategically:
 
-Your process should be:
-1. Analyze the commit log and diff to understand the overall scope of changes
-2. Use tools strategically to investigate significant changes that need more context
-3. Look at previous releases to understand how this release fits into the project's evolution
-4. Identify patterns, themes, and connections between changes
-5. Check for breaking changes and significant architectural shifts
-6. Understand the "why" behind changes by examining commit messages, issues, and code
-7. Synthesize findings into comprehensive, thoughtful release notes
+## Investigation Tools
 
-Guidelines:
-- Use tools strategically - focus on understanding significant changes
-- Look at test changes to understand intent and functionality
-- Check previous releases to provide context and compare scope
-- Identify patterns and themes across multiple commits
-- Consider the audience and what context they need
-- Be thorough and analytical, especially for large releases
-- Follow the release notes format and best practices provided
+**Understanding Context & History:**
+- get_file_history: Use when you need to understand how a file evolved. Good for: seeing if a refactor is part of a larger pattern, understanding why certain decisions were made
+- get_recent_commits: Use to see what happened to files recently. Good for: detecting related work, understanding if this is part of an ongoing effort
+- compare_previous_release: Use to contextualize scope. Good for: comparing size/impact of this release vs previous ones, identifying if this is major/minor
+- get_tag_history: Use early to understand release cadence. Good for: establishing context about project versioning patterns
+
+**Analyzing Current Changes:**
+- get_file_content: Use when diff alone isn't enough. Good for: understanding APIs, seeing full class/function context, checking imports
+- analyze_diff_section: Use to expand context around cryptic changes. Good for: seeing surrounding code, understanding integration points
+- get_file_dependencies: Use for refactors/moves. Good for: assessing impact scope, identifying what depends on changed code
+- search_codebase: Use to find usage patterns. Good for: checking if APIs are widely used, finding similar patterns elsewhere
+
+**Pattern Recognition:**
+- group_files_by_concern: Use when many files changed. Good for: organizing changes into logical themes, identifying what actually happened
+- analyze_commit_patterns: Use for many commits. Good for: detecting themes across commits, identifying if work is focused or scattered
+- get_release_stats: Use to quantify scope. Good for: getting concrete metrics on scale of changes
+
+**Risk Assessment:**
+- get_breaking_changes: Always use. Good for: identifying API changes, finding removals/signature changes that could break users
+- get_related_tests: Use for significant logic changes. Good for: understanding what behavior changed, verifying test coverage exists
+
+## Your Investigation Strategy
+
+1. **Start broad** (2-3 tools): get_tag_history, get_release_stats, analyze_commit_patterns
+2. **Identify themes** (1-2 tools): group_files_by_concern if many files, compare_previous_release for context
+3. **Deep dive** (3-5 tools): get_file_content for key changes, get_file_dependencies for refactors, analyze_diff_section for unclear changes
+4. **Verify understanding** (2-3 tools): get_related_tests for logic changes, search_codebase for impact
+5. **Check risks** (1 tool): get_breaking_changes always
+
+Use at least 6-8 tools per release to ensure comprehensive analysis. Each tool provides a different lens on the changes.
 
 Output format:
 When you're ready to provide the final release notes, format them as JSON:
@@ -168,7 +170,11 @@ The release notes should:
 - Connect related changes to reveal patterns
 - Be substantial and analytical, not formulaic
 - Sound like they were written by a human who studied the changes
-- Be grounded in actual commits and issues (no hallucinations)`;
+- Be grounded in actual commits and issues (no hallucinations)
+- Be standalone documentation that can be published as-is
+- NEVER include conversational elements like "If you want, I can also..." or "Let me know if..."
+- NEVER offer follow-up actions, questions, or suggestions for additional work
+- End with substantive content, not conversational closing remarks`;
 }
 
 /**

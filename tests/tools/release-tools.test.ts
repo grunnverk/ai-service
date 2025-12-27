@@ -441,7 +441,19 @@ describe('Release Tools', () => {
             expect(result).toContain('3: line3');
         });
 
-        it('should handle read errors gracefully', async () => {
+        it('should handle ENOENT errors gracefully for deleted files', async () => {
+            const enoentError: any = new Error('ENOENT: no such file or directory');
+            enoentError.code = 'ENOENT';
+            (mockContext.storage.readFile as any).mockRejectedValue(enoentError);
+
+            const tool = tools.find(t => t.name === 'get_file_content')!;
+            const result = await tool.execute({ filePath: 'src/deleted.ts' }, mockContext);
+
+            expect(result).toContain('File not found: src/deleted.ts');
+            expect(result).toContain('may have been deleted');
+        });
+
+        it('should throw on other read errors', async () => {
             (mockContext.storage.readFile as any).mockRejectedValue(new Error('Permission denied'));
 
             const tool = tools.find(t => t.name === 'get_file_content')!;

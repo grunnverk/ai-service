@@ -75,18 +75,35 @@ describe('Commit Tools', () => {
             ).rejects.toThrow('Storage adapter not available in context');
         });
 
-        it('should handle file read errors gracefully', async () => {
+        it('should handle ENOENT errors gracefully for deleted files', async () => {
             const tools = createCommitTools();
             const getFileContentTool = tools.find(t => t.name === 'get_file_content')!;
 
-            vi.mocked(mockStorage.readFile).mockRejectedValue(new Error('File not found'));
+            const enoentError: any = new Error('ENOENT: no such file or directory');
+            enoentError.code = 'ENOENT';
+            vi.mocked(mockStorage.readFile).mockRejectedValue(enoentError);
+
+            const result = await getFileContentTool.execute(
+                { filePath: 'src/missing.ts' },
+                { storage: mockStorage, workingDirectory: '/test', logger: mockLogger }
+            );
+
+            expect(result).toContain('File not found: src/missing.ts');
+            expect(result).toContain('may have been deleted');
+        });
+
+        it('should throw on other file read errors', async () => {
+            const tools = createCommitTools();
+            const getFileContentTool = tools.find(t => t.name === 'get_file_content')!;
+
+            vi.mocked(mockStorage.readFile).mockRejectedValue(new Error('Permission denied'));
 
             await expect(
                 getFileContentTool.execute(
                     { filePath: 'src/missing.ts' },
                     { storage: mockStorage, workingDirectory: '/test', logger: mockLogger }
                 )
-            ).rejects.toThrow('Failed to read file: File not found');
+            ).rejects.toThrow('Failed to read file: Permission denied');
         });
     });
 
