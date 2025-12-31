@@ -129,36 +129,59 @@ export async function runAgenticCommit(config: AgenticCommitConfig): Promise<Age
  * Build the system prompt for agentic commit generation
  */
 function buildSystemPrompt(toolGuidance: string): string {
-    return `You are an expert software engineer tasked with generating meaningful commit messages.
+    return `You are a professional software engineer writing commit messages for your team.
 
 ${toolGuidance}
 
-## Investigation Strategy
+## Your Task
 
-For simple changes (1-3 files, obvious purpose):
-- Use 1-2 tools: get_recent_commits to avoid duplicates, get_related_tests if logic changed
+Write a commit message that clearly explains what changed and why. Your message should help teammates understand the changes without needing to read the diff.
 
-For moderate changes (4-10 files, clear theme):
-- Use 2-4 tools: group_files_by_concern, get_file_content for key files, get_recent_commits, get_related_tests
+Think about:
+- What problem does this solve?
+- How do the changes work together?
+- What should reviewers focus on?
+- Are there any important implications?
 
-For complex changes (10+ files, or unclear purpose):
-- Use 4-6 tools: group_files_by_concern, get_file_history, get_file_content for key files, get_file_dependencies, get_related_tests, search_codebase
+Use the available tools to investigate the changes. The more you understand, the better your message will be.
 
-Always use tools to understand context - don't rely only on the diff.
+**Important**: If additional context is provided (from context files or other sources), use your judgment:
+- If the context is relevant to these specific changes, incorporate it
+- If the context describes unrelated changes or other packages, ignore it
+- Don't force connections between unrelated information
+- Focus on accurately describing what actually changed in this commit
 
-## Guidelines
-- Follow conventional commit format when appropriate (feat:, fix:, refactor:, docs:, test:, chore:)
-- Consider suggesting split commits for unrelated changes
-- Output only the commit message and/or splits - no conversational remarks
-- NEVER include phrases like "If you want" or "Let me know" or offer follow-up actions
+## Investigation Approach
 
-Output format:
-When you're ready to provide the final commit message, format it as:
+Use tools based on what you need to know:
+- group_files_by_concern - understand how files relate
+- get_file_content - see full context when diffs are unclear
+- get_file_history - understand how code evolved
+- get_file_dependencies - assess impact of changes
+- get_recent_commits - avoid duplicate messages
+- get_related_tests - understand behavior changes
+- search_codebase - find usage patterns
+
+## Writing Style
+
+Write naturally and directly:
+- Use plain language, not corporate speak
+- Be specific and concrete
+- Avoid buzzwords and jargon
+- No emojis or excessive punctuation
+- No phrases like "this commit" or "this PR"
+- No meta-commentary about the commit itself
+
+Follow conventional commit format when appropriate (feat:, fix:, refactor:, docs:, test:, chore:), but prioritize clarity over formality.
+
+## Output Format
+
+When ready, format your response as:
 
 COMMIT_MESSAGE:
-[Your generated commit message here]
+[Your commit message here]
 
-If you recommend splitting into multiple commits, also include:
+If changes should be split into multiple commits:
 
 SUGGESTED_SPLITS:
 Split 1:
@@ -169,7 +192,7 @@ Message: [commit message for this split]
 Split 2:
 ...
 
-If changes should remain as one commit, do not include SUGGESTED_SPLITS section.`;
+Output only the commit message and splits. No conversational remarks or follow-up offers.`;
 }
 
 /**
@@ -198,9 +221,16 @@ ${diffContent}`;
 ${logContext}`;
     }
 
-    message += `\n\nPlease investigate these changes and generate an appropriate commit message.
-Use the available tools to gather additional context as needed.
-If these changes should be split into multiple commits, suggest the groupings.`;
+    message += `\n\nAnalyze these changes and write a clear commit message. Consider:
+- What problem does this solve?
+- How do the changes work together?
+- Should this be one commit or multiple?
+
+If context information is provided, use it only if relevant to these specific changes.
+Don't force connections that don't exist - if context doesn't apply to this package,
+simply ignore it and focus on the actual changes.
+
+Investigate as needed to write an accurate, helpful message.`;
 
     return message;
 }
