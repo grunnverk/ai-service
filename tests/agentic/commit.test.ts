@@ -235,8 +235,9 @@ feat: Add new feature to the system`,
             const systemPrompt = call.messages[0].content;
             // Since we now use automatic tool guidance generation from riotprompt,
             // verify the system prompt structure includes both auto-generated
-            // tool documentation and our custom strategy guidance
-            expect(systemPrompt).toContain('Investigation Strategy'); // Our custom strategy section
+            // tool documentation and our custom approach guidance
+            expect(systemPrompt).toContain('Investigation Approach'); // Our custom approach section
+            expect(systemPrompt).toContain('Writing Style'); // Writing style section
             expect(systemPrompt).toContain('conventional commit format'); // Guidelines
             expect(systemPrompt.length).toBeGreaterThan(500); // Should include substantial tool guidance
         });
