@@ -476,10 +476,10 @@ describe('Commit Tools', () => {
     });
 
     describe('tool registration', () => {
-        it('should create all 8 expected tools', () => {
+        it('should create all 9 expected tools', () => {
             const tools = createCommitTools();
 
-            expect(tools).toHaveLength(8);
+            expect(tools).toHaveLength(9);
             expect(tools.map(t => t.name)).toEqual([
                 'get_file_history',
                 'get_file_content',
@@ -489,6 +489,7 @@ describe('Commit Tools', () => {
                 'analyze_diff_section',
                 'get_recent_commits',
                 'group_files_by_concern',
+                'get_file_modification_times',
             ]);
         });
 
