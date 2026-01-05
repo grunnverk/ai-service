@@ -1,6 +1,7 @@
 import type { Tool, ToolContext } from './types';
 import { run } from '@eldrforge/git-tools';
 import * as path from 'path';
+import * as fs from 'fs';
 
 /**
  * Create tools for commit message generation
@@ -15,6 +16,7 @@ export function createCommitTools(): Tool[] {
         createAnalyzeDiffSectionTool(),
         createGetRecentCommitsTool(),
         createGroupFilesByConcernTool(),
+        createGetFileModificationTimesTool(),
     ];
 }
 
@@ -510,6 +512,128 @@ function createGroupFilesByConcernTool(): Tool {
                 : '\n\nSuggestion: All files appear to be related and should be in a single commit.';
 
             return output + suggestion;
+        },
+    };
+}
+
+/**
+ * Get modification times for files to identify temporal clusters
+ */
+function createGetFileModificationTimesTool(): Tool {
+    return {
+        name: 'get_file_modification_times',
+        description: 'Get modification timestamps for changed files. Temporal proximity is one signal (among others) that can help identify related changes. Files modified close together MAY be part of the same logical change, but this is not guaranteed - always cross-reference with logical groupings.',
+        category: 'Organization',
+        cost: 'cheap',
+        examples: [
+            {
+                scenario: 'Identify files modified together vs at different times',
+                params: { filePaths: ['src/auth.ts', 'src/user.ts', 'README.md', 'tests/auth.test.ts'] },
+                expectedResult: 'Files with timestamps grouped by temporal proximity'
+            }
+        ],
+        parameters: {
+            type: 'object',
+            properties: {
+                filePaths: {
+                    type: 'array',
+                    description: 'All changed files to analyze',
+                    items: { type: 'string', description: 'File path' },
+                },
+            },
+            required: ['filePaths'],
+        },
+        execute: async (params: { filePaths: string[] }, context?: ToolContext) => {
+            const { filePaths } = params;
+            const workingDir = context?.workingDirectory || process.cwd();
+
+            interface FileTimeInfo {
+                file: string;
+                mtime: Date;
+                mtimeMs: number;
+            }
+
+            const fileInfos: FileTimeInfo[] = [];
+            const errors: string[] = [];
+
+            for (const filePath of filePaths) {
+                try {
+                    const fullPath = path.isAbsolute(filePath) ? filePath : path.join(workingDir, filePath);
+                    const stat = fs.statSync(fullPath);
+                    fileInfos.push({
+                        file: filePath,
+                        mtime: stat.mtime,
+                        mtimeMs: stat.mtimeMs,
+                    });
+                } catch {
+                    // File might be deleted, try to get info from git
+                    errors.push(filePath);
+                }
+            }
+
+            // Sort by modification time
+            fileInfos.sort((a, b) => a.mtimeMs - b.mtimeMs);
+
+            // Group files into temporal clusters (files within 10 minutes of each other)
+            const CLUSTER_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
+            const clusters: FileTimeInfo[][] = [];
+            let currentCluster: FileTimeInfo[] = [];
+
+            for (const info of fileInfos) {
+                if (currentCluster.length === 0) {
+                    currentCluster.push(info);
+                } else {
+                    const lastFile = currentCluster[currentCluster.length - 1];
+                    if (info.mtimeMs - lastFile.mtimeMs <= CLUSTER_THRESHOLD_MS) {
+                        currentCluster.push(info);
+                    } else {
+                        clusters.push(currentCluster);
+                        currentCluster = [info];
+                    }
+                }
+            }
+            if (currentCluster.length > 0) {
+                clusters.push(currentCluster);
+            }
+
+            // Format output
+            let output = `## File Modification Times (sorted oldest to newest)\n\n`;
+
+            for (const info of fileInfos) {
+                const timeStr = info.mtime.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '');
+                output += `${timeStr}  ${info.file}\n`;
+            }
+
+            if (errors.length > 0) {
+                output += `\n## Files not found (possibly deleted):\n`;
+                output += errors.map(f => `  - ${f}`).join('\n');
+            }
+
+            // Add temporal cluster analysis
+            output += `\n\n## Temporal Clusters (files modified within 10 minutes of each other)\n\n`;
+
+            if (clusters.length === 1) {
+                output += `All ${fileInfos.length} files were modified in a single work session.\n`;
+            } else {
+                output += `Found ${clusters.length} distinct work sessions:\n\n`;
+
+                clusters.forEach((cluster, idx) => {
+                    const startTime = cluster[0].mtime.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '');
+                    const endTime = cluster[cluster.length - 1].mtime.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '');
+                    const durationMs = cluster[cluster.length - 1].mtimeMs - cluster[0].mtimeMs;
+                    const durationMins = Math.round(durationMs / 60000);
+
+                    output += `### Session ${idx + 1} (${cluster.length} files, ${durationMins} min span)\n`;
+                    output += `Time: ${startTime} to ${endTime}\n`;
+                    output += `Files:\n`;
+                    output += cluster.map(f => `  - ${f.file}`).join('\n');
+                    output += '\n\n';
+                });
+
+                output += `\n**Note**: These ${clusters.length} temporal clusters may indicate separate work sessions. Cross-reference with logical groupings to determine if they represent distinct changes worth splitting.`;
+            }
+
+            return output;
         },
     };
 }
