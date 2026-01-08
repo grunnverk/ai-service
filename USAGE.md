@@ -1019,7 +1019,7 @@ const result = await runAgenticCommit({
 
 ## Support
 
-- 🐛 [Report Issues](https://github.com/calenvarek/ai-service/issues)
-- 💬 [Discussions](https://github.com/calenvarek/ai-service/discussions)
-- 📧 Email: calenvarek@gmail.com
+- 🐛 [Report Issues](https://github.com/grunnverk/ai-service/issues)
+- 💬 [Discussions](https://github.com/grunnverk/ai-service/discussions)
+- 📧 Email: tobrien@discursive.com
 

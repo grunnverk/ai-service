@@ -4,7 +4,7 @@ AI-powered content generation library with agentic capabilities for commit messa
 
 ## Overview
 
-`@eldrforge/ai-service` is a TypeScript library that provides intelligent content generation powered by OpenAI's GPT models. It was extracted from the [kodrdriv](https://github.com/calenvarek/kodrdriv) automation tool to enable standalone use in any Node.js application.
+`@eldrforge/ai-service` is a TypeScript library that provides intelligent content generation powered by OpenAI's GPT models. It was extracted from the [kodrdriv](https://github.com/grunnverk/kodrdriv) automation tool to enable standalone use in any Node.js application.
 
 ### Key Features
 
@@ -1198,12 +1198,12 @@ Monitor usage with the `toolMetrics` data.
 
 ## Contributing
 
-Contributions are welcome! This library was extracted from [kodrdriv](https://github.com/calenvarek/kodrdriv).
+Contributions are welcome! This library was extracted from [kodrdriv](https://github.com/grunnverk/kodrdriv).
 
 ### Development Setup
 
 ```bash
-git clone https://github.com/calenvarek/ai-service.git
+git clone https://github.com/grunnverk/ai-service.git
 cd ai-service
 npm install
 npm run build
@@ -1224,15 +1224,15 @@ Apache-2.0
 
 ## Related Projects
 
-- **[kodrdriv](https://github.com/calenvarek/kodrdriv)** - Full automation toolkit that uses this library
+- **[kodrdriv](https://github.com/grunnverk/kodrdriv)** - Full automation toolkit that uses this library
 - **[@eldrforge/git-tools](https://www.npmjs.com/package/@eldrforge/git-tools)** - Git utility functions
 - **[@riotprompt/riotprompt](https://www.npmjs.com/package/@riotprompt/riotprompt)** - Structured prompt builder
 
 ## Support
 
-- 📖 [Full Documentation](https://github.com/calenvarek/ai-service)
-- 🐛 [Issue Tracker](https://github.com/calenvarek/ai-service/issues)
-- 💬 [Discussions](https://github.com/calenvarek/ai-service/discussions)
+- 📖 [Full Documentation](https://github.com/grunnverk/ai-service)
+- 🐛 [Issue Tracker](https://github.com/grunnverk/ai-service/issues)
+- 💬 [Discussions](https://github.com/grunnverk/ai-service/discussions)
 
 ## Changelog
 

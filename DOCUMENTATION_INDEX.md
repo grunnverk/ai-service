@@ -286,9 +286,9 @@ registry.registerAll(tools)
 - 📖 [Full Documentation](./README.md)
 - 🚀 [Quick Start](./QUICKSTART.md)
 - 💡 [Examples](./examples/)
-- 🐛 [Issue Tracker](https://github.com/calenvarek/ai-service/issues)
-- 💬 [Discussions](https://github.com/calenvarek/ai-service/discussions)
-- 📧 Email: calenvarek@gmail.com
+- 🐛 [Issue Tracker](https://github.com/grunnverk/ai-service/issues)
+- 💬 [Discussions](https://github.com/grunnverk/ai-service/discussions)
+- 📧 Email: tobrien@discursive.com
 
 ## Contributing
 

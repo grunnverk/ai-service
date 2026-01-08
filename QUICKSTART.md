@@ -162,8 +162,8 @@ git add <files>
 ```
 
 **Need Help?**
-- [Report Issues](https://github.com/calenvarek/ai-service/issues)
-- [Ask Questions](https://github.com/calenvarek/ai-service/discussions)
+- [Report Issues](https://github.com/grunnverk/ai-service/issues)
+- [Ask Questions](https://github.com/grunnverk/ai-service/discussions)
 
 ## Cost Estimates
 
