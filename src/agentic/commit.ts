@@ -135,32 +135,70 @@ ${toolGuidance}
 
 ## Your Task
 
-Write a commit message that clearly explains what changed and why. Your message should help teammates understand the changes without needing to read the diff.
+Analyze the staged changes and determine the best way to commit them. Your primary goal is to create **meaningful, atomic commits** that each represent a single logical change.
+
+**CRITICAL**: When there are many changed files, especially after a long work session (multiple hours), you should almost always split them into multiple commits. A single commit with 10+ files usually indicates multiple distinct changes that should be separated.
 
 Think about:
-- What problem does this solve?
-- How do the changes work together?
-- What should reviewers focus on?
-- Are there any important implications?
+- What distinct features, fixes, or improvements are represented?
+- Are there natural groupings by functionality, module, or purpose?
+- When were files modified relative to each other?
+- What should reviewers focus on in each commit?
 
-Use the available tools to investigate the changes. The more you understand, the better your message will be.
+## Investigation Strategy
 
-**Important**: If additional context is provided (from context files or other sources), use your judgment:
+For any non-trivial set of changes, gather multiple signals to understand how to group commits:
+
+1. **Check file modification times** using \`get_file_modification_times\`
+   - This reveals *when* files were changed relative to each other
+   - Files modified close together *may* be part of the same logical change
+   - Large temporal gaps *can* indicate separate work sessions
+   - Note: temporal proximity is one signal, not a guarantee of relatedness
+
+2. **Understand logical relationships** using \`group_files_by_concern\`
+   - Groups by module, type (tests, docs, source), and directory structure
+   - Reveals which files are functionally related regardless of when they were modified
+
+3. **Cross-reference both signals** to make informed decisions:
+   - Files modified together AND logically related → strong candidate for same commit
+   - Files modified apart BUT logically related → might still belong together
+   - Files modified together BUT logically unrelated → consider splitting
+   - Use your judgment - neither signal is definitive on its own
+
+4. **Investigate further** as needed:
+   - get_file_content - see full context when diffs are unclear
+   - get_file_history - understand how code evolved
+   - get_file_dependencies - assess impact of changes
+   - get_recent_commits - avoid duplicate messages
+   - get_related_tests - understand behavior changes
+   - search_codebase - find usage patterns
+
+## When to Split Commits
+
+**Prefer multiple commits when:**
+- Changes span multiple hours of work (check modification times!)
+- Different logical features or fixes are included
+- Test changes could be separated from production code changes
+- Documentation updates are unrelated to code changes
+- Refactoring is mixed with feature work
+- Configuration changes are mixed with implementation changes
+- Files in different modules/packages are changed for different reasons
+
+**Keep as one commit when:**
+- All changes are part of a single, cohesive feature
+- Files were modified together in a focused work session
+- Test changes directly test the production code changes
+- The changes tell a single coherent story
+
+**Default bias**: When in doubt about whether to split, **prefer splitting**. It's better to have too many focused commits than too few bloated ones. A good commit should be understandable and reviewable in isolation.
+
+## Important Context Guidelines
+
+If additional context is provided (from context files or other sources), use your judgment:
 - If the context is relevant to these specific changes, incorporate it
 - If the context describes unrelated changes or other packages, ignore it
 - Don't force connections between unrelated information
-- Focus on accurately describing what actually changed in this commit
-
-## Investigation Approach
-
-Use tools based on what you need to know:
-- group_files_by_concern - understand how files relate
-- get_file_content - see full context when diffs are unclear
-- get_file_history - understand how code evolved
-- get_file_dependencies - assess impact of changes
-- get_recent_commits - avoid duplicate messages
-- get_related_tests - understand behavior changes
-- search_codebase - find usage patterns
+- Focus on accurately describing what actually changed
 
 ## Writing Style
 
@@ -179,17 +217,22 @@ Follow conventional commit format when appropriate (feat:, fix:, refactor:, docs
 When ready, format your response as:
 
 COMMIT_MESSAGE:
-[Your commit message here]
+[Your commit message here - only for the FIRST group of changes if splitting]
 
-If changes should be split into multiple commits:
+If changes should be split into multiple commits (which is often the case with large changesets):
 
 SUGGESTED_SPLITS:
 Split 1:
 Files: [list of files]
-Rationale: [why these belong together]
+Rationale: [why these belong together - mention temporal clustering and/or logical relationship]
 Message: [commit message for this split]
 
 Split 2:
+Files: [list of files]
+Rationale: [why these belong together]
+Message: [commit message for this split]
+
+Split 3:
 ...
 
 Output only the commit message and splits. No conversational remarks or follow-up offers.`;
@@ -204,9 +247,12 @@ function buildUserMessage(
     userDirection?: string,
     logContext?: string
 ): string {
+    const fileCount = changedFiles.length;
+    const manyFiles = fileCount >= 5;
+
     let message = `I have staged changes that need a commit message.
 
-Changed files (${changedFiles.length}):
+Changed files (${fileCount}):
 ${changedFiles.map(f => `  - ${f}`).join('\n')}
 
 Diff:
@@ -221,16 +267,24 @@ ${diffContent}`;
 ${logContext}`;
     }
 
-    message += `\n\nAnalyze these changes and write a clear commit message. Consider:
-- What problem does this solve?
-- How do the changes work together?
-- Should this be one commit or multiple?
+    message += `\n\n## Your Analysis Task
+
+${manyFiles ? `With ${fileCount} files changed, consider whether these represent multiple distinct changes that should be split into separate commits.
+
+` : ''}Gather signals to understand the changes:
+1. Use \`get_file_modification_times\` to see when files were modified relative to each other
+2. Use \`group_files_by_concern\` to understand how files relate by type/purpose
+3. Cross-reference both signals - temporal proximity and logical relatedness - to determine the best commit structure
+
+Consider:
+- What distinct features, fixes, or improvements are included?
+- Are files that were modified together also logically related?
+- Would separate commits make the history more understandable?
+
+${manyFiles ? 'With many files, consider whether multiple focused commits would be clearer than one large commit.' : 'If changes represent multiple logical concerns, suggest splits.'}
 
 If context information is provided, use it only if relevant to these specific changes.
-Don't force connections that don't exist - if context doesn't apply to this package,
-simply ignore it and focus on the actual changes.
-
-Investigate as needed to write an accurate, helpful message.`;
+Don't force connections that don't exist - focus on what actually changed.`;
 
     return message;
 }

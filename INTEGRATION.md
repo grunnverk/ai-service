@@ -762,8 +762,8 @@ function validateInputs(changedFiles: string[], diffContent: string) {
 
 ## Support
 
-- 🐛 [Report Issues](https://github.com/calenvarek/ai-service/issues)
-- 💬 [Discussions](https://github.com/calenvarek/ai-service/discussions)
+- 🐛 [Report Issues](https://github.com/grunnverk/ai-service/issues)
+- 💬 [Discussions](https://github.com/grunnverk/ai-service/discussions)
 - 📖 [Documentation](./README.md)
-- 📧 Email: calenvarek@gmail.com
+- 📧 Email: tobrien@discursive.com
 

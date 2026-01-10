@@ -310,11 +310,11 @@ After exploring these examples:
 
 - [Main README](../README.md) - Full API documentation
 - [OpenAI API Docs](https://platform.openai.com/docs) - OpenAI reference
-- [kodrdriv](https://github.com/calenvarek/kodrdriv) - Full automation toolkit
+- [kodrdriv](https://github.com/grunnverk/kodrdriv) - Full automation toolkit
 
 ## Questions or Issues?
 
-- 🐛 [Report bugs](https://github.com/calenvarek/ai-service/issues)
-- 💬 [Discussions](https://github.com/calenvarek/ai-service/discussions)
+- 🐛 [Report bugs](https://github.com/grunnverk/ai-service/issues)
+- 💬 [Discussions](https://github.com/grunnverk/ai-service/discussions)
 - 📖 [Documentation](../README.md)
 

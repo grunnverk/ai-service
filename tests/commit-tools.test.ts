@@ -1,10 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createCommitTools } from '../src/tools/commit-tools';
 import * as gitTools from '@eldrforge/git-tools';
+import * as fs from 'fs';
 
 // Mock the git-tools module
 vi.mock('@eldrforge/git-tools', () => ({
     run: vi.fn(),
+}));
+
+// Mock fs module
+vi.mock('fs', () => ({
+    statSync: vi.fn(),
 }));
 
 describe('commit-tools', () => {
@@ -124,6 +130,120 @@ describe('commit-tools', () => {
                     { workingDirectory: '/test/dir' }
                 )
             ).rejects.toThrow('Search failed: fatal: not a git repository');
+        });
+    });
+
+    describe('get_file_modification_times tool', () => {
+        it('should return file modification times sorted oldest to newest', async () => {
+            const tools = createCommitTools();
+            const modTimesTool = tools.find(t => t.name === 'get_file_modification_times');
+
+            expect(modTimesTool).toBeDefined();
+
+            // Mock fs.statSync for different files with different times
+            const baseTime = new Date('2024-01-15T10:00:00Z').getTime();
+            vi.mocked(fs.statSync).mockImplementation((filePath: fs.PathLike) => {
+                const path = String(filePath);
+                if (path.includes('file1.ts')) {
+                    return { mtime: new Date(baseTime), mtimeMs: baseTime } as fs.Stats;
+                } else if (path.includes('file2.ts')) {
+                    return { mtime: new Date(baseTime + 5 * 60 * 1000), mtimeMs: baseTime + 5 * 60 * 1000 } as fs.Stats; // 5 min later
+                } else if (path.includes('file3.ts')) {
+                    return { mtime: new Date(baseTime + 2 * 60 * 60 * 1000), mtimeMs: baseTime + 2 * 60 * 60 * 1000 } as fs.Stats; // 2 hours later
+                }
+                return { mtime: new Date(baseTime), mtimeMs: baseTime } as fs.Stats;
+            });
+
+            const result = await modTimesTool!.execute(
+                { filePaths: ['src/file1.ts', 'src/file2.ts', 'src/file3.ts'] },
+                { workingDirectory: '/test/dir' }
+            );
+
+            // Should include temporal cluster analysis
+            expect(result).toContain('File Modification Times');
+            expect(result).toContain('Temporal Clusters');
+            expect(result).toContain('src/file1.ts');
+            expect(result).toContain('src/file2.ts');
+            expect(result).toContain('src/file3.ts');
+        });
+
+        it('should identify multiple temporal clusters when files are modified hours apart', async () => {
+            const tools = createCommitTools();
+            const modTimesTool = tools.find(t => t.name === 'get_file_modification_times');
+
+            const baseTime = new Date('2024-01-15T10:00:00Z').getTime();
+            vi.mocked(fs.statSync).mockImplementation((filePath: fs.PathLike) => {
+                const path = String(filePath);
+                if (path.includes('file1.ts')) {
+                    return { mtime: new Date(baseTime), mtimeMs: baseTime } as fs.Stats;
+                } else if (path.includes('file2.ts')) {
+                    // 2 hours later - should be a different cluster
+                    return { mtime: new Date(baseTime + 2 * 60 * 60 * 1000), mtimeMs: baseTime + 2 * 60 * 60 * 1000 } as fs.Stats;
+                }
+                return { mtime: new Date(baseTime), mtimeMs: baseTime } as fs.Stats;
+            });
+
+            const result = await modTimesTool!.execute(
+                { filePaths: ['src/file1.ts', 'src/file2.ts'] },
+                { workingDirectory: '/test/dir' }
+            );
+
+            // Should identify 2 distinct work sessions
+            expect(result).toContain('2 distinct work sessions');
+            expect(result).toContain('Session 1');
+            expect(result).toContain('Session 2');
+        });
+
+        it('should group files into single cluster when modified close together', async () => {
+            const tools = createCommitTools();
+            const modTimesTool = tools.find(t => t.name === 'get_file_modification_times');
+
+            const baseTime = new Date('2024-01-15T10:00:00Z').getTime();
+            vi.mocked(fs.statSync).mockImplementation((filePath: fs.PathLike) => {
+                const path = String(filePath);
+                if (path.includes('file1.ts')) {
+                    return { mtime: new Date(baseTime), mtimeMs: baseTime } as fs.Stats;
+                } else if (path.includes('file2.ts')) {
+                    // 5 minutes later - should be same cluster (within 10 min threshold)
+                    return { mtime: new Date(baseTime + 5 * 60 * 1000), mtimeMs: baseTime + 5 * 60 * 1000 } as fs.Stats;
+                } else if (path.includes('file3.ts')) {
+                    // 8 minutes after file2 - should still be same cluster
+                    return { mtime: new Date(baseTime + 13 * 60 * 1000), mtimeMs: baseTime + 13 * 60 * 1000 } as fs.Stats;
+                }
+                return { mtime: new Date(baseTime), mtimeMs: baseTime } as fs.Stats;
+            });
+
+            const result = await modTimesTool!.execute(
+                { filePaths: ['src/file1.ts', 'src/file2.ts', 'src/file3.ts'] },
+                { workingDirectory: '/test/dir' }
+            );
+
+            // Should identify as single work session
+            expect(result).toContain('All 3 files were modified in a single work session');
+        });
+
+        it('should handle deleted files gracefully', async () => {
+            const tools = createCommitTools();
+            const modTimesTool = tools.find(t => t.name === 'get_file_modification_times');
+
+            const baseTime = new Date('2024-01-15T10:00:00Z').getTime();
+            vi.mocked(fs.statSync).mockImplementation((filePath: fs.PathLike) => {
+                const path = String(filePath);
+                if (path.includes('deleted.ts')) {
+                    throw new Error('ENOENT: no such file or directory');
+                }
+                return { mtime: new Date(baseTime), mtimeMs: baseTime } as fs.Stats;
+            });
+
+            const result = await modTimesTool!.execute(
+                { filePaths: ['src/existing.ts', 'src/deleted.ts'] },
+                { workingDirectory: '/test/dir' }
+            );
+
+            // Should show the file that exists and note the deleted one
+            expect(result).toContain('src/existing.ts');
+            expect(result).toContain('Files not found');
+            expect(result).toContain('src/deleted.ts');
         });
     });
 });
