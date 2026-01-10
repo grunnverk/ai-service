@@ -312,10 +312,28 @@ function parseAgenticResult(finalMessage: string): {
 
         while ((match = splitRegex.exec(splitsText)) !== null) {
             const filesText = match[1].trim();
-            const files = filesText
-                .split('\n')
-                .map(line => line.trim().replace(/^[-*]\s*/, ''))
-                .filter(line => line.length > 0);
+            let files: string[] = [];
+
+            // Handle two formats:
+            // 1. Bracket format: [file1, file2, file3]
+            // 2. Multi-line format with bullets:
+            //    - file1
+            //    - file2
+
+            if (filesText.startsWith('[') && filesText.endsWith(']')) {
+                // Bracket format: extract content and split by comma
+                const bracketed = filesText.slice(1, -1);
+                files = bracketed
+                    .split(',')
+                    .map(f => f.trim())
+                    .filter(f => f.length > 0);
+            } else {
+                // Multi-line format with bullets
+                files = filesText
+                    .split('\n')
+                    .map(line => line.trim().replace(/^[-*]\s*/, ''))
+                    .filter(line => line.length > 0);
+            }
 
             suggestedSplits.push({
                 files,

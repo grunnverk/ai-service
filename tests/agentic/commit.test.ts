@@ -363,6 +363,41 @@ Message: Test message`,
             ]);
         });
 
+        it('should handle files with bracket format in suggested splits', async () => {
+            const { runAgentic } = await import('../../src/agentic/executor');
+
+            (runAgentic as any).mockResolvedValue({
+                finalMessage: `COMMIT_MESSAGE:
+Test
+
+SUGGESTED_SPLITS:
+Split 1:
+Files: [src/commands/commit.ts, src/types.ts]
+Rationale: Single cohesive feature
+Message: feat(commit): auto-create split commits from AI suggestions
+
+Split 2:
+Files: [tests/util/performanceTracker.test.ts]
+Rationale: Independent test stabilization
+Message: test(performanceTracker): add small delays to stabilize speedup calculation`,
+                iterations: 1,
+                toolCallsExecuted: 0,
+                conversationHistory: [],
+                toolMetrics: [],
+            });
+
+            const result = await runAgenticCommit({
+                changedFiles: ['src/commands/commit.ts', 'src/types.ts', 'tests/util/performanceTracker.test.ts'],
+                diffContent: 'diff',
+            });
+
+            expect(result.suggestedSplits).toHaveLength(2);
+            expect(result.suggestedSplits[0].files).toEqual(['src/commands/commit.ts', 'src/types.ts']);
+            expect(result.suggestedSplits[0].message).toBe('feat(commit): auto-create split commits from AI suggestions');
+            expect(result.suggestedSplits[1].files).toEqual(['tests/util/performanceTracker.test.ts']);
+            expect(result.suggestedSplits[1].message).toBe('test(performanceTracker): add small delays to stabilize speedup calculation');
+        });
+
         it('should not include empty suggested splits', async () => {
             const { runAgentic } = await import('../../src/agentic/executor');
 
