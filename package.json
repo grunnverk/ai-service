@@ -12,7 +12,8 @@
   },
   "files": [
     "dist",
-    "examples"
+    "examples",
+    "guide"
   ],
   "repository": {
     "type": "git",
