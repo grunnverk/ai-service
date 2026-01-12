@@ -851,9 +851,22 @@ registry.registerAll(tools);
 OPENAI_API_KEY=sk-...           # Your OpenAI API key
 
 # Optional
+OPENAI_PROJECT_ID=proj-...      # OpenAI project ID (required for project-scoped API keys)
+OPENAI_TIMEOUT_MS=300000        # API timeout in milliseconds (default: 300000 = 5 minutes)
 EDITOR=code --wait              # Editor for interactive editing
 OPENAI_BASE_URL=https://...     # Custom OpenAI API endpoint
 ```
+
+**Note on Project-Scoped API Keys:**
+
+If your API key starts with `sk-proj-`, it's a project-scoped key and you **must** set `OPENAI_PROJECT_ID`:
+
+```bash
+export OPENAI_API_KEY=sk-proj-...
+export OPENAI_PROJECT_ID=proj-YOUR_PROJECT_ID
+```
+
+Alternatively, you can create a legacy (non-project-scoped) API key from the [OpenAI dashboard](https://platform.openai.com/api-keys) which starts with `sk-` (without the `-proj-` suffix).
 
 ### Model Selection
 
