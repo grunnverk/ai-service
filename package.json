@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "@eldrforge/git-tools": "^0.1.22",
-    "@riotprompt/riotprompt": "^0.0.10",
+    "@riotprompt/riotprompt": "^0.0.20",
     "openai": "^6.3.0"
   },
   "peerDependencies": {
