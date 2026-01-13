@@ -25,7 +25,7 @@ jobs:
         run: |
           # Use public registry (package-lock.json is gitignored to avoid Walmart registry refs)
           npm config set registry https://registry.npmjs.org/
-          npm install --verbose --foreground-scripts
+          npm install --verbose --foreground-scripts --include=optional
         timeout-minutes: 10
       - run: npm run lint
       - run: npm run build
@@ -47,7 +47,7 @@ jobs:
         run: |
           # Use public registry (package-lock.json is gitignored to avoid Walmart registry refs)
           npm config set registry https://registry.npmjs.org/
-          npm install --verbose --foreground-scripts
+          npm install --verbose --foreground-scripts --include=optional
         timeout-minutes: 10
       - run: npm publish --access public
 
