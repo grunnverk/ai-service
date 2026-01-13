@@ -407,11 +407,9 @@ function createGetPackageChangelogTool(): Tool {
 
                 // Try to construct GitHub releases URL
                 let releasesUrl = '';
-                if (repoUrl.includes('github.com')) {
-                    const match = repoUrl.match(/github\.com[/:]([^/]+\/[^/.]+)/);
-                    if (match) {
-                        releasesUrl = `https://github.com/${match[1]}/releases`;
-                    }
+                const match = repoUrl.match(/github\.com[/:]([^/]+\/[^/.]+)/);
+                if (match) {
+                    releasesUrl = `https://github.com/${match[1]}/releases`;
                 }
 
                 return {
