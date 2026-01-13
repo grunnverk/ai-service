@@ -290,6 +290,64 @@ Don't force connections that don't exist - focus on what actually changed.`;
 }
 
 /**
+ * Sanitize a file path from AI response
+ * Handles: quotes, annotations in parentheses, bullet prefixes, extra whitespace
+ * e.g., '"package.json" (only add "semver")' -> 'package.json'
+ * e.g., '- src/file.ts' -> 'src/file.ts'
+ * e.g., '  - src/file.ts' -> 'src/file.ts'
+ */
+function sanitizeFilePath(filePath: string): string {
+    return filePath
+        // First trim leading/trailing whitespace
+        .trim()
+        // Remove bullet point prefix (- or *)
+        .replace(/^[-*]\s*/, '')
+        // Remove surrounding quotes (both single and double)
+        .replace(/^["']|["']$/g, '')
+        // Remove any annotation in parentheses at the end (e.g., "(only add semver)")
+        .replace(/\s*\([^)]*\)\s*$/, '')
+        // Remove surrounding quotes again (in case annotation had quotes)
+        .replace(/^["']|["']$/g, '')
+        .trim();
+}
+
+/**
+ * Parse files text from AI response into an array of file paths
+ * Handles three formats:
+ * 1. Bracket format: [file1, file2, file3]
+ * 2. Multi-line format with bullets: - file1\n  - file2
+ * 3. Inline comma-separated with quotes: "file1", "file2", "file3" (annotation)
+ */
+function parseFilesText(filesText: string): string[] {
+    // Format 1: Bracket format
+    if (filesText.startsWith('[') && filesText.includes(']')) {
+        // Extract content up to the closing bracket (ignore anything after)
+        const closeIndex = filesText.indexOf(']');
+        const bracketed = filesText.slice(1, closeIndex);
+        return bracketed
+            .split(',')
+            .map(f => sanitizeFilePath(f))
+            .filter(f => f.length > 0);
+    }
+
+    // Format 3: Inline comma-separated with quotes (e.g., "file1", "file2", "file3")
+    // Detect by checking if it starts with a quote and contains ", " pattern
+    if (filesText.match(/^["']/) && filesText.includes('", "')) {
+        // Split by the pattern: quote, comma, optional space, quote
+        return filesText
+            .split(/["'],\s*["']/)
+            .map(f => sanitizeFilePath(f))
+            .filter(f => f.length > 0);
+    }
+
+    // Format 2: Multi-line format with bullets or just newlines
+    return filesText
+        .split('\n')
+        .map(line => sanitizeFilePath(line))
+        .filter(line => line.length > 0);
+}
+
+/**
  * Parse the agentic result to extract commit message and splits
  */
 function parseAgenticResult(finalMessage: string): {
@@ -312,28 +370,7 @@ function parseAgenticResult(finalMessage: string): {
 
         while ((match = splitRegex.exec(splitsText)) !== null) {
             const filesText = match[1].trim();
-            let files: string[] = [];
-
-            // Handle two formats:
-            // 1. Bracket format: [file1, file2, file3]
-            // 2. Multi-line format with bullets:
-            //    - file1
-            //    - file2
-
-            if (filesText.startsWith('[') && filesText.endsWith(']')) {
-                // Bracket format: extract content and split by comma
-                const bracketed = filesText.slice(1, -1);
-                files = bracketed
-                    .split(',')
-                    .map(f => f.trim())
-                    .filter(f => f.length > 0);
-            } else {
-                // Multi-line format with bullets
-                files = filesText
-                    .split('\n')
-                    .map(line => line.trim().replace(/^[-*]\s*/, ''))
-                    .filter(line => line.length > 0);
-            }
+            const files = parseFilesText(filesText);
 
             suggestedSplits.push({
                 files,

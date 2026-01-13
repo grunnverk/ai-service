@@ -398,6 +398,44 @@ Message: test(performanceTracker): add small delays to stabilize speedup calcula
             expect(result.suggestedSplits[1].message).toBe('test(performanceTracker): add small delays to stabilize speedup calculation');
         });
 
+        it('should sanitize file paths with quotes and annotations', async () => {
+            const { runAgentic } = await import('../../src/agentic/executor');
+
+            (runAgentic as any).mockResolvedValue({
+                finalMessage: `COMMIT_MESSAGE:
+feat: add pull command
+
+SUGGESTED_SPLITS:
+Split 1:
+Files: "src/commands/pull.ts", "src/index.ts", "package.json" (only add "semver")
+Rationale: Pull command implementation
+Message: feat: add smart pull command
+
+Split 2:
+Files: "package.json" (remaining dependency changes)
+Rationale: Dependency updates
+Message: chore(deps): update dependencies`,
+                iterations: 1,
+                toolCallsExecuted: 0,
+                conversationHistory: [],
+                toolMetrics: [],
+            });
+
+            const result = await runAgenticCommit({
+                changedFiles: ['src/commands/pull.ts', 'src/index.ts', 'package.json'],
+                diffContent: 'diff',
+            });
+
+            expect(result.suggestedSplits).toHaveLength(2);
+            // File paths should be sanitized - no quotes, no annotations
+            expect(result.suggestedSplits[0].files).toEqual([
+                'src/commands/pull.ts',
+                'src/index.ts',
+                'package.json',
+            ]);
+            expect(result.suggestedSplits[1].files).toEqual(['package.json']);
+        });
+
         it('should not include empty suggested splits', async () => {
             const { runAgentic } = await import('../../src/agentic/executor');
 
