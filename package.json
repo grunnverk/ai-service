@@ -47,7 +47,7 @@
     "node": ">=24.0.0"
   },
   "dependencies": {
-    "@eldrforge/git-tools": "^0.1.20",
+    "@eldrforge/git-tools": "^0.1.21",
     "@riotprompt/riotprompt": "^0.0.10",
     "openai": "^6.3.0"
   },
