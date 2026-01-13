@@ -47,7 +47,9 @@
     "node": ">=24.0.0"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
     "@eldrforge/git-tools": "^0.1.22",
+    "@google/generative-ai": "^0.24.1",
     "@riotprompt/riotprompt": "^0.0.21",
     "openai": "^6.3.0",
     "semver": "^7.7.2"
