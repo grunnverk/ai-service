@@ -3,13 +3,12 @@ import { runAgentic, type AgenticConfig, type ToolExecutionMetric } from './exec
 import { createToolRegistry } from '../tools/registry';
 import { createCommitTools } from '../tools/commit-tools';
 import type { StorageAdapter, Logger } from '../types';
-import { generateToolGuidance } from '@riotprompt/riotprompt';
 
 export interface AgenticCommitConfig {
     changedFiles: string[];
-    diffContent: string;
+    diffContent?: string; // Optional - AI can use tools to read files
     userDirection?: string;
-    logContext?: string;
+    logContext?: string; // Optional - AI can use get_recent_commits tool
     model?: string;
     maxIterations?: number;
     debug?: boolean;
@@ -45,9 +44,9 @@ export interface AgenticCommitResult {
 export async function runAgenticCommit(config: AgenticCommitConfig): Promise<AgenticCommitResult> {
     const {
         changedFiles,
-        diffContent,
+        diffContent: _diffContent, // Optional - AI can use tools to read files
         userDirection,
-        logContext,
+        logContext: _logContext, // Optional - AI can use get_recent_commits tool
         model = 'gpt-4o',
         maxIterations = 10,
         debug = false,
@@ -70,19 +69,11 @@ export async function runAgenticCommit(config: AgenticCommitConfig): Promise<Age
     const tools = createCommitTools();
     toolRegistry.registerAll(tools);
 
-    // Generate automatic tool guidance from riotprompt
-    const toolGuidance = generateToolGuidance(tools, {
-        strategy: 'adaptive',
-        includeExamples: true,
-        explainWhenToUse: true,
-        includeCategories: true,
-    });
+    // Build initial system prompt (no tool guidance - tools are registered, AI can discover them)
+    const systemPrompt = buildSystemPrompt();
 
-    // Build initial system prompt with tool guidance
-    const systemPrompt = buildSystemPrompt(toolGuidance);
-
-    // Build initial user message
-    const userMessage = buildUserMessage(changedFiles, diffContent, userDirection, logContext);
+    // Build initial user message (minimal - AI will use tools to investigate)
+    const userMessage = buildUserMessage(changedFiles, userDirection);
 
     // Prepare messages for agentic loop
     const messages: ChatCompletionMessageParam[] = [
@@ -128,10 +119,22 @@ export async function runAgenticCommit(config: AgenticCommitConfig): Promise<Age
 /**
  * Build the system prompt for agentic commit generation
  */
-function buildSystemPrompt(toolGuidance: string): string {
+function buildSystemPrompt(): string {
     return `You are a professional software engineer writing commit messages for your team.
 
-${toolGuidance}
+## Available Tools
+
+You have access to tools to investigate the changes:
+- \`get_file_content\` - Read file contents or diffs for specific files
+- \`get_file_modification_times\` - See when files were modified relative to each other
+- \`group_files_by_concern\` - Understand how files relate by type/purpose
+- \`get_recent_commits\` - Get recent commit history to avoid duplicates
+- \`get_file_history\` - Understand how code evolved
+- \`get_file_dependencies\` - Assess impact of changes
+- \`get_related_tests\` - Find related test files
+- \`search_codebase\` - Search for usage patterns
+
+Use these tools to investigate the changes rather than asking for information upfront.
 
 ## Your Task
 
@@ -239,13 +242,11 @@ Output only the commit message and splits. No conversational remarks or follow-u
 }
 
 /**
- * Build the initial user message
+ * Build the initial user message - minimal context, AI will use tools to investigate
  */
 function buildUserMessage(
     changedFiles: string[],
-    diffContent: string,
-    userDirection?: string,
-    logContext?: string
+    userDirection?: string
 ): string {
     const fileCount = changedFiles.length;
     const manyFiles = fileCount >= 5;
@@ -253,28 +254,22 @@ function buildUserMessage(
     let message = `I have staged changes that need a commit message.
 
 Changed files (${fileCount}):
-${changedFiles.map(f => `  - ${f}`).join('\n')}
-
-Diff:
-${diffContent}`;
+${changedFiles.map(f => `  - ${f}`).join('\n')}`;
 
     if (userDirection) {
         message += `\n\nUser direction: ${userDirection}`;
     }
 
-    if (logContext) {
-        message += `\n\nRecent commit history for context:
-${logContext}`;
-    }
-
     message += `\n\n## Your Analysis Task
 
-${manyFiles ? `With ${fileCount} files changed, consider whether these represent multiple distinct changes that should be split into separate commits.
+${manyFiles ? `With ${fileCount} files changed, investigate whether these represent multiple distinct changes that should be split into separate commits.
 
-` : ''}Gather signals to understand the changes:
-1. Use \`get_file_modification_times\` to see when files were modified relative to each other
-2. Use \`group_files_by_concern\` to understand how files relate by type/purpose
-3. Cross-reference both signals - temporal proximity and logical relatedness - to determine the best commit structure
+` : ''}Use your tools to investigate the changes:
+1. Use \`get_file_content\` to read the actual changes in the files
+2. Use \`get_file_modification_times\` to see when files were modified relative to each other
+3. Use \`group_files_by_concern\` to understand how files relate by type/purpose
+4. Use \`get_recent_commits\` to check recent commit history and avoid duplicates
+5. Cross-reference temporal proximity and logical relatedness to determine the best commit structure
 
 Consider:
 - What distinct features, fixes, or improvements are included?
@@ -283,8 +278,7 @@ Consider:
 
 ${manyFiles ? 'With many files, consider whether multiple focused commits would be clearer than one large commit.' : 'If changes represent multiple logical concerns, suggest splits.'}
 
-If context information is provided, use it only if relevant to these specific changes.
-Don't force connections that don't exist - focus on what actually changed.`;
+Start by reading the file contents to understand what actually changed.`;
 
     return message;
 }

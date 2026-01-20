@@ -3,13 +3,12 @@ import { runAgentic, type AgenticConfig, type ToolExecutionMetric } from './exec
 import { createToolRegistry } from '../tools/registry';
 import { createReleaseTools } from '../tools/release-tools';
 import type { StorageAdapter, Logger } from '../types';
-import { generateToolGuidance } from '@riotprompt/riotprompt';
 
 export interface AgenticReleaseConfig {
     fromRef: string;
     toRef: string;
-    logContent: string;
-    diffContent: string;
+    logContent?: string; // Optional - AI can use tools to get commit log
+    diffContent?: string; // Optional - AI can use tools to get diffs
     milestoneIssues?: string;
     releaseFocus?: string;
     userContext?: string;
@@ -48,8 +47,8 @@ export async function runAgenticRelease(config: AgenticReleaseConfig): Promise<A
     const {
         fromRef,
         toRef,
-        logContent,
-        diffContent,
+        logContent: _logContent, // Optional - AI can use tools to get commit log
+        diffContent: _diffContent, // Optional - AI can use tools to get diffs
         milestoneIssues,
         releaseFocus,
         userContext,
@@ -76,23 +75,13 @@ export async function runAgenticRelease(config: AgenticReleaseConfig): Promise<A
     const tools = createReleaseTools();
     toolRegistry.registerAll(tools);
 
-    // Generate automatic tool guidance from riotprompt
-    const toolGuidance = generateToolGuidance(tools, {
-        strategy: 'adaptive',
-        includeExamples: true,
-        explainWhenToUse: true,
-        includeCategories: true,
-    });
+    // Build initial system prompt (no tool guidance - tools are registered, AI can discover them)
+    const systemPrompt = buildSystemPrompt();
 
-    // Build initial system prompt with tool guidance
-    const systemPrompt = buildSystemPrompt(toolGuidance);
-
-    // Build initial user message
+    // Build initial user message (minimal - AI will use tools to investigate)
     const userMessage = buildUserMessage({
         fromRef,
         toRef,
-        logContent,
-        diffContent,
         milestoneIssues,
         releaseFocus,
         userContext,
@@ -142,10 +131,26 @@ export async function runAgenticRelease(config: AgenticReleaseConfig): Promise<A
 /**
  * Build the system prompt for agentic release notes generation
  */
-function buildSystemPrompt(toolGuidance: string): string {
+function buildSystemPrompt(): string {
     return `You are a professional software engineer writing release notes for your team and users.
 
-${toolGuidance}
+## Available Tools
+
+You have access to tools to investigate the release:
+- \`get_tag_history\` - Understand release patterns
+- \`get_release_stats\` - Quantify scope of changes
+- \`compare_previous_release\` - See how this compares to previous releases
+- \`group_files_by_concern\` - Identify themes in changes
+- \`analyze_commit_patterns\` - Detect patterns in commits
+- \`get_file_content\` - Read file contents or diffs
+- \`analyze_diff_section\` - Expand unclear changes
+- \`get_file_history\` - Understand how code evolved
+- \`get_file_dependencies\` - Assess impact and reach
+- \`search_codebase\` - Find usage patterns
+- \`get_related_tests\` - Understand behavior changes
+- \`get_breaking_changes\` - Identify breaking changes (always use this)
+
+Use these tools to investigate the changes rather than asking for information upfront.
 
 ## Your Task
 
@@ -220,19 +225,17 @@ No conversational remarks or follow-up offers.`;
 }
 
 /**
- * Build the initial user message
+ * Build the initial user message - minimal context, AI will use tools to investigate
  */
 function buildUserMessage(params: {
     fromRef: string;
     toRef: string;
-    logContent: string;
-    diffContent: string;
     milestoneIssues?: string;
     releaseFocus?: string;
     userContext?: string;
     targetVersion?: string;
 }): string {
-    const { fromRef, toRef, logContent, diffContent, milestoneIssues, releaseFocus, userContext, targetVersion } = params;
+    const { fromRef, toRef, milestoneIssues, releaseFocus, userContext, targetVersion } = params;
 
     let message = `I need comprehensive release notes for changes from ${fromRef} to ${toRef}.`;
 
@@ -241,15 +244,6 @@ function buildUserMessage(params: {
         const versionNumber = targetVersion.replace(/^v/, '');
         message += `\n\n**CRITICAL VERSION INSTRUCTION: This is a release for version ${versionNumber}. You MUST use EXACTLY "${versionNumber}" in your release title. DO NOT use any development/prerelease version numbers you may see in the diff (like ${versionNumber}-dev.0 or similar). The release version is ${versionNumber}.**`;
     }
-
-    message += `
-
-
-## Commit Log
-${logContent}
-
-## Diff Summary
-${diffContent}`;
 
     if (milestoneIssues) {
         message += `\n\n## Resolved Issues from Milestone
@@ -268,7 +262,18 @@ This is the PRIMARY GUIDE for how to frame and structure the release notes. Use 
 ${userContext}`;
     }
 
-    message += `\n\nAnalyze these changes and write clear release notes. Consider:
+    message += `\n\n## Your Analysis Task
+
+Use your tools to investigate the changes between ${fromRef} and ${toRef}:
+1. Use \`get_release_stats\` to understand the scope of changes
+2. Use \`get_tag_history\` or \`compare_previous_release\` to see release patterns
+3. Use \`analyze_commit_patterns\` to detect themes
+4. Use \`group_files_by_concern\` to identify logical groupings
+5. Use \`get_breaking_changes\` to identify breaking changes (always check this)
+6. Use \`get_file_content\` or \`analyze_diff_section\` to understand specific changes
+7. Use \`get_file_dependencies\` and \`search_codebase\` to assess impact
+
+Write clear release notes that answer:
 - What's the main story of this release?
 - What problems does it solve?
 - What's the impact on users and developers?
@@ -278,7 +283,7 @@ If context information is provided, use it only if relevant to this specific pac
 Don't force connections that don't exist - if context describes changes in other packages
 or unrelated features, simply ignore it and focus on what actually changed in this release.
 
-Investigate as needed to write accurate, helpful release notes.`;
+Start by gathering statistics and understanding the scope, then investigate specific changes as needed.`;
 
     return message;
 }
