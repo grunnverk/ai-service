@@ -13,6 +13,7 @@ export interface AgenticReleaseConfig {
     milestoneIssues?: string;
     releaseFocus?: string;
     userContext?: string;
+    targetVersion?: string; // Explicit version for the release (e.g., "1.0.0")
     model?: string;
     maxIterations?: number;
     debug?: boolean;
@@ -52,6 +53,7 @@ export async function runAgenticRelease(config: AgenticReleaseConfig): Promise<A
         milestoneIssues,
         releaseFocus,
         userContext,
+        targetVersion,
         model = 'gpt-4o',
         maxIterations = 30,
         debug = false,
@@ -94,6 +96,7 @@ export async function runAgenticRelease(config: AgenticReleaseConfig): Promise<A
         milestoneIssues,
         releaseFocus,
         userContext,
+        targetVersion,
     });
 
     // Prepare messages for agentic loop
@@ -204,15 +207,16 @@ Structure your notes logically:
 
 ## Output Format
 
-When ready, format your response as JSON:
+When ready, output your release notes in this exact format:
 
-RELEASE_NOTES:
-{
-  "title": "Clear, factual title describing the main changes",
-  "body": "Detailed release notes in Markdown format"
-}
+RELEASE_TITLE:
+[A clear, factual title describing the main changes]
 
-Output only the JSON. No conversational remarks or follow-up offers.`;
+RELEASE_BODY:
+[Detailed release notes in Markdown format]
+
+Do not include any JSON, code blocks, or wrapper syntax. Output plain text and markdown only.
+No conversational remarks or follow-up offers.`;
 }
 
 /**
@@ -226,10 +230,20 @@ function buildUserMessage(params: {
     milestoneIssues?: string;
     releaseFocus?: string;
     userContext?: string;
+    targetVersion?: string;
 }): string {
-    const { fromRef, toRef, logContent, diffContent, milestoneIssues, releaseFocus, userContext } = params;
+    const { fromRef, toRef, logContent, diffContent, milestoneIssues, releaseFocus, userContext, targetVersion } = params;
 
-    let message = `I need comprehensive release notes for changes from ${fromRef} to ${toRef}.
+    let message = `I need comprehensive release notes for changes from ${fromRef} to ${toRef}.`;
+
+    if (targetVersion) {
+        // Strip any 'v' prefix if present for display
+        const versionNumber = targetVersion.replace(/^v/, '');
+        message += `\n\n**CRITICAL VERSION INSTRUCTION: This is a release for version ${versionNumber}. You MUST use EXACTLY "${versionNumber}" in your release title. DO NOT use any development/prerelease version numbers you may see in the diff (like ${versionNumber}-dev.0 or similar). The release version is ${versionNumber}.**`;
+    }
+
+    message += `
+
 
 ## Commit Log
 ${logContent}
@@ -275,32 +289,23 @@ Investigate as needed to write accurate, helpful release notes.`;
 function parseAgenticResult(finalMessage: string): {
     releaseNotes: { title: string; body: string };
 } {
-    // Look for RELEASE_NOTES: marker with JSON
-    const jsonMatch = finalMessage.match(/RELEASE_NOTES:\s*\n([\s\S]*)/);
+    // Look for RELEASE_TITLE: and RELEASE_BODY: markers
+    const titleMatch = finalMessage.match(/RELEASE_TITLE:\s*\n(.*?)(?=\n\nRELEASE_BODY:|\n\s*\nRELEASE_BODY:)/s);
+    const bodyMatch = finalMessage.match(/RELEASE_BODY:\s*\n([\s\S]*)/);
 
-    if (jsonMatch) {
-        try {
-            const jsonStr = jsonMatch[1].trim();
-            // Try to parse the JSON with error handling
-            let parsed: any;
-            try {
-                parsed = JSON.parse(jsonStr);
-            } catch {
-                // Failed to parse JSON, will use fallback parsing below
-                parsed = null;
-            }
+    if (titleMatch && bodyMatch) {
+        const title = titleMatch[1].trim();
+        let body = bodyMatch[1].trim();
 
-            if (parsed && parsed.title && parsed.body) {
-                return {
-                    releaseNotes: {
-                        title: parsed.title,
-                        body: parsed.body,
-                    },
-                };
-            }
-        } catch {
-            // JSON parsing failed, fall through to fallback
-        }
+        // Clean up any JSON artifacts that might have leaked through
+        body = cleanJsonArtifacts(body);
+
+        return {
+            releaseNotes: {
+                title,
+                body,
+            },
+        };
     }
 
     // Fallback: try to extract title and body from the message
@@ -310,7 +315,7 @@ function parseAgenticResult(finalMessage: string): {
     let inBody = false;
 
     for (const line of lines) {
-        if (!title && line.trim() && !line.startsWith('#')) {
+        if (!title && line.trim() && !line.startsWith('#') && !line.startsWith('RELEASE_')) {
             title = line.trim();
         } else if (title && line.trim()) {
             inBody = true;
@@ -327,11 +332,35 @@ function parseAgenticResult(finalMessage: string): {
         body = finalMessage;
     }
 
+    // Clean up any JSON artifacts from the body
+    body = cleanJsonArtifacts(body);
+
     return {
         releaseNotes: {
             title: title.trim(),
             body: body.trim(),
         },
     };
+}
+
+/**
+ * Clean up JSON artifacts that might have leaked into the output
+ */
+function cleanJsonArtifacts(text: string): string {
+    // Remove JSON wrapper patterns like { "title": "...", "body": "...
+    text = text.replace(/^\s*\{\s*"title":\s*"[^"]*",?\s*"body":\s*"/m, '');
+
+    // Remove trailing JSON closing patterns
+    text = text.replace(/"\s*\}\s*$/m, '');
+
+    // Remove code fence markers that might wrap the content
+    text = text.replace(/^```json\s*\n/gm, '');
+    text = text.replace(/^```\s*$/gm, '');
+
+    // Remove escaped quotes that might appear in JSON strings
+    text = text.replace(/\\"/g, '"');
+    text = text.replace(/\\n/g, '\n');
+
+    return text.trim();
 }
 
