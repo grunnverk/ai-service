@@ -162,7 +162,10 @@ feat: Add new feature to the system`,
 
             const call = (runAgentic as any).mock.calls[0][0];
             const userMessage = call.messages[1].content;
-            expect(userMessage).toContain(diffContent);
+            // diffContent is now optional - AI uses tools to read files instead
+            // The user message should instruct the AI to use tools to investigate
+            expect(userMessage).toContain('get_file_content');
+            expect(userMessage).toContain('file.ts');
         });
 
         it('should include user direction if provided', async () => {
@@ -211,8 +214,10 @@ feat: Add new feature to the system`,
 
             const call = (runAgentic as any).mock.calls[0][0];
             const userMessage = call.messages[1].content;
-            expect(userMessage).toContain('Recent commit history');
-            expect(userMessage).toContain(logContext);
+            // logContext is now optional - AI uses get_recent_commits tool instead
+            // The user message should instruct the AI to use tools to investigate
+            expect(userMessage).toContain('get_recent_commits');
+            expect(userMessage).toContain('file.ts');
         });
 
         it('should have system prompt with tool descriptions', async () => {

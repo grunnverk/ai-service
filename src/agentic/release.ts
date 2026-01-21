@@ -3,16 +3,16 @@ import { runAgentic, type AgenticConfig, type ToolExecutionMetric } from './exec
 import { createToolRegistry } from '../tools/registry';
 import { createReleaseTools } from '../tools/release-tools';
 import type { StorageAdapter, Logger } from '../types';
-import { generateToolGuidance } from '@riotprompt/riotprompt';
 
 export interface AgenticReleaseConfig {
     fromRef: string;
     toRef: string;
-    logContent: string;
-    diffContent: string;
+    logContent?: string; // Optional - AI can use tools to get commit log
+    diffContent?: string; // Optional - AI can use tools to get diffs
     milestoneIssues?: string;
     releaseFocus?: string;
     userContext?: string;
+    targetVersion?: string; // Explicit version for the release (e.g., "1.0.0")
     model?: string;
     maxIterations?: number;
     debug?: boolean;
@@ -47,11 +47,12 @@ export async function runAgenticRelease(config: AgenticReleaseConfig): Promise<A
     const {
         fromRef,
         toRef,
-        logContent,
-        diffContent,
+        logContent: _logContent, // Optional - AI can use tools to get commit log
+        diffContent: _diffContent, // Optional - AI can use tools to get diffs
         milestoneIssues,
         releaseFocus,
         userContext,
+        targetVersion,
         model = 'gpt-4o',
         maxIterations = 30,
         debug = false,
@@ -74,26 +75,17 @@ export async function runAgenticRelease(config: AgenticReleaseConfig): Promise<A
     const tools = createReleaseTools();
     toolRegistry.registerAll(tools);
 
-    // Generate automatic tool guidance from riotprompt
-    const toolGuidance = generateToolGuidance(tools, {
-        strategy: 'adaptive',
-        includeExamples: true,
-        explainWhenToUse: true,
-        includeCategories: true,
-    });
+    // Build initial system prompt (no tool guidance - tools are registered, AI can discover them)
+    const systemPrompt = buildSystemPrompt();
 
-    // Build initial system prompt with tool guidance
-    const systemPrompt = buildSystemPrompt(toolGuidance);
-
-    // Build initial user message
+    // Build initial user message (minimal - AI will use tools to investigate)
     const userMessage = buildUserMessage({
         fromRef,
         toRef,
-        logContent,
-        diffContent,
         milestoneIssues,
         releaseFocus,
         userContext,
+        targetVersion,
     });
 
     // Prepare messages for agentic loop
@@ -139,10 +131,26 @@ export async function runAgenticRelease(config: AgenticReleaseConfig): Promise<A
 /**
  * Build the system prompt for agentic release notes generation
  */
-function buildSystemPrompt(toolGuidance: string): string {
+function buildSystemPrompt(): string {
     return `You are a professional software engineer writing release notes for your team and users.
 
-${toolGuidance}
+## Available Tools
+
+You have access to tools to investigate the release:
+- \`get_tag_history\` - Understand release patterns
+- \`get_release_stats\` - Quantify scope of changes
+- \`compare_previous_release\` - See how this compares to previous releases
+- \`group_files_by_concern\` - Identify themes in changes
+- \`analyze_commit_patterns\` - Detect patterns in commits
+- \`get_file_content\` - Read file contents or diffs
+- \`analyze_diff_section\` - Expand unclear changes
+- \`get_file_history\` - Understand how code evolved
+- \`get_file_dependencies\` - Assess impact and reach
+- \`search_codebase\` - Find usage patterns
+- \`get_related_tests\` - Understand behavior changes
+- \`get_breaking_changes\` - Identify breaking changes (always use this)
+
+Use these tools to investigate the changes rather than asking for information upfront.
 
 ## Your Task
 
@@ -204,38 +212,38 @@ Structure your notes logically:
 
 ## Output Format
 
-When ready, format your response as JSON:
+When ready, output your release notes in this exact format:
 
-RELEASE_NOTES:
-{
-  "title": "Clear, factual title describing the main changes",
-  "body": "Detailed release notes in Markdown format"
-}
+RELEASE_TITLE:
+[A clear, factual title describing the main changes]
 
-Output only the JSON. No conversational remarks or follow-up offers.`;
+RELEASE_BODY:
+[Detailed release notes in Markdown format]
+
+Do not include any JSON, code blocks, or wrapper syntax. Output plain text and markdown only.
+No conversational remarks or follow-up offers.`;
 }
 
 /**
- * Build the initial user message
+ * Build the initial user message - minimal context, AI will use tools to investigate
  */
 function buildUserMessage(params: {
     fromRef: string;
     toRef: string;
-    logContent: string;
-    diffContent: string;
     milestoneIssues?: string;
     releaseFocus?: string;
     userContext?: string;
+    targetVersion?: string;
 }): string {
-    const { fromRef, toRef, logContent, diffContent, milestoneIssues, releaseFocus, userContext } = params;
+    const { fromRef, toRef, milestoneIssues, releaseFocus, userContext, targetVersion } = params;
 
-    let message = `I need comprehensive release notes for changes from ${fromRef} to ${toRef}.
+    let message = `I need comprehensive release notes for changes from ${fromRef} to ${toRef}.`;
 
-## Commit Log
-${logContent}
-
-## Diff Summary
-${diffContent}`;
+    if (targetVersion) {
+        // Strip any 'v' prefix if present for display
+        const versionNumber = targetVersion.replace(/^v/, '');
+        message += `\n\n**CRITICAL VERSION INSTRUCTION: This is a release for version ${versionNumber}. You MUST use EXACTLY "${versionNumber}" in your release title. DO NOT use any development/prerelease version numbers you may see in the diff (like ${versionNumber}-dev.0 or similar). The release version is ${versionNumber}.**`;
+    }
 
     if (milestoneIssues) {
         message += `\n\n## Resolved Issues from Milestone
@@ -254,7 +262,18 @@ This is the PRIMARY GUIDE for how to frame and structure the release notes. Use 
 ${userContext}`;
     }
 
-    message += `\n\nAnalyze these changes and write clear release notes. Consider:
+    message += `\n\n## Your Analysis Task
+
+Use your tools to investigate the changes between ${fromRef} and ${toRef}:
+1. Use \`get_release_stats\` to understand the scope of changes
+2. Use \`get_tag_history\` or \`compare_previous_release\` to see release patterns
+3. Use \`analyze_commit_patterns\` to detect themes
+4. Use \`group_files_by_concern\` to identify logical groupings
+5. Use \`get_breaking_changes\` to identify breaking changes (always check this)
+6. Use \`get_file_content\` or \`analyze_diff_section\` to understand specific changes
+7. Use \`get_file_dependencies\` and \`search_codebase\` to assess impact
+
+Write clear release notes that answer:
 - What's the main story of this release?
 - What problems does it solve?
 - What's the impact on users and developers?
@@ -264,7 +283,7 @@ If context information is provided, use it only if relevant to this specific pac
 Don't force connections that don't exist - if context describes changes in other packages
 or unrelated features, simply ignore it and focus on what actually changed in this release.
 
-Investigate as needed to write accurate, helpful release notes.`;
+Start by gathering statistics and understanding the scope, then investigate specific changes as needed.`;
 
     return message;
 }
@@ -275,32 +294,23 @@ Investigate as needed to write accurate, helpful release notes.`;
 function parseAgenticResult(finalMessage: string): {
     releaseNotes: { title: string; body: string };
 } {
-    // Look for RELEASE_NOTES: marker with JSON
-    const jsonMatch = finalMessage.match(/RELEASE_NOTES:\s*\n([\s\S]*)/);
+    // Look for RELEASE_TITLE: and RELEASE_BODY: markers
+    const titleMatch = finalMessage.match(/RELEASE_TITLE:\s*\n(.*?)(?=\n\nRELEASE_BODY:|\n\s*\nRELEASE_BODY:)/s);
+    const bodyMatch = finalMessage.match(/RELEASE_BODY:\s*\n([\s\S]*)/);
 
-    if (jsonMatch) {
-        try {
-            const jsonStr = jsonMatch[1].trim();
-            // Try to parse the JSON with error handling
-            let parsed: any;
-            try {
-                parsed = JSON.parse(jsonStr);
-            } catch {
-                // Failed to parse JSON, will use fallback parsing below
-                parsed = null;
-            }
+    if (titleMatch && bodyMatch) {
+        const title = titleMatch[1].trim();
+        let body = bodyMatch[1].trim();
 
-            if (parsed && parsed.title && parsed.body) {
-                return {
-                    releaseNotes: {
-                        title: parsed.title,
-                        body: parsed.body,
-                    },
-                };
-            }
-        } catch {
-            // JSON parsing failed, fall through to fallback
-        }
+        // Clean up any JSON artifacts that might have leaked through
+        body = cleanJsonArtifacts(body);
+
+        return {
+            releaseNotes: {
+                title,
+                body,
+            },
+        };
     }
 
     // Fallback: try to extract title and body from the message
@@ -310,7 +320,7 @@ function parseAgenticResult(finalMessage: string): {
     let inBody = false;
 
     for (const line of lines) {
-        if (!title && line.trim() && !line.startsWith('#')) {
+        if (!title && line.trim() && !line.startsWith('#') && !line.startsWith('RELEASE_')) {
             title = line.trim();
         } else if (title && line.trim()) {
             inBody = true;
@@ -327,11 +337,35 @@ function parseAgenticResult(finalMessage: string): {
         body = finalMessage;
     }
 
+    // Clean up any JSON artifacts from the body
+    body = cleanJsonArtifacts(body);
+
     return {
         releaseNotes: {
             title: title.trim(),
             body: body.trim(),
         },
     };
+}
+
+/**
+ * Clean up JSON artifacts that might have leaked into the output
+ */
+function cleanJsonArtifacts(text: string): string {
+    // Remove JSON wrapper patterns like { "title": "...", "body": "...
+    text = text.replace(/^\s*\{\s*"title":\s*"[^"]*",?\s*"body":\s*"/m, '');
+
+    // Remove trailing JSON closing patterns
+    text = text.replace(/"\s*\}\s*$/m, '');
+
+    // Remove code fence markers that might wrap the content
+    text = text.replace(/^```json\s*\n/gm, '');
+    text = text.replace(/^```\s*$/gm, '');
+
+    // Remove escaped quotes that might appear in JSON strings
+    text = text.replace(/\\"/g, '"');
+    text = text.replace(/\\n/g, '\n');
+
+    return text.trim();
 }
 

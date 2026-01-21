@@ -46,11 +46,11 @@ describe('runAgenticRelease', () => {
         const { runAgentic } = await import('../../src/agentic/executor');
 
         (runAgentic as any).mockResolvedValue({
-            finalMessage: `RELEASE_NOTES:
-{
-  "title": "Test Release",
-  "body": "This is a test release with some changes."
-}`,
+            finalMessage: `RELEASE_TITLE:
+Test Release
+
+RELEASE_BODY:
+This is a test release with some changes.`,
             iterations: 5,
             toolCallsExecuted: 10,
             conversationHistory: [],
@@ -78,11 +78,11 @@ describe('runAgenticRelease', () => {
         const { runAgentic } = await import('../../src/agentic/executor');
 
         (runAgentic as any).mockResolvedValue({
-            finalMessage: `RELEASE_NOTES:
-{
-  "title": "Release with Issues",
-  "body": "Fixed several issues."
-}`,
+            finalMessage: `RELEASE_TITLE:
+Release with Issues
+
+RELEASE_BODY:
+Fixed several issues.`,
             iterations: 3,
             toolCallsExecuted: 5,
             conversationHistory: [],
@@ -113,11 +113,11 @@ describe('runAgenticRelease', () => {
         const { runAgentic } = await import('../../src/agentic/executor');
 
         (runAgentic as any).mockResolvedValue({
-            finalMessage: `RELEASE_NOTES:
-{
-  "title": "Focused Release",
-  "body": "This release focuses on performance."
-}`,
+            finalMessage: `RELEASE_TITLE:
+Focused Release
+
+RELEASE_BODY:
+This release focuses on performance.`,
             iterations: 4,
             toolCallsExecuted: 8,
             conversationHistory: [],
@@ -147,11 +147,11 @@ describe('runAgenticRelease', () => {
         const { runAgentic } = await import('../../src/agentic/executor');
 
         (runAgentic as any).mockResolvedValue({
-            finalMessage: `RELEASE_NOTES:
-{
-  "title": "Contextual Release",
-  "body": "Release with additional context."
-}`,
+            finalMessage: `RELEASE_TITLE:
+Contextual Release
+
+RELEASE_BODY:
+Release with additional context.`,
             iterations: 2,
             toolCallsExecuted: 4,
             conversationHistory: [],
@@ -181,11 +181,11 @@ describe('runAgenticRelease', () => {
         const { runAgentic } = await import('../../src/agentic/executor');
 
         (runAgentic as any).mockResolvedValue({
-            finalMessage: `RELEASE_NOTES:
-{
-  "title": "Default Iterations",
-  "body": "Test"
-}`,
+            finalMessage: `RELEASE_TITLE:
+Default Iterations
+
+RELEASE_BODY:
+Test`,
             iterations: 1,
             toolCallsExecuted: 2,
             conversationHistory: [],
@@ -209,11 +209,11 @@ describe('runAgenticRelease', () => {
         const { runAgentic } = await import('../../src/agentic/executor');
 
         (runAgentic as any).mockResolvedValue({
-            finalMessage: `RELEASE_NOTES:
-{
-  "title": "Custom Iterations",
-  "body": "Test"
-}`,
+            finalMessage: `RELEASE_TITLE:
+Custom Iterations
+
+RELEASE_BODY:
+Test`,
             iterations: 1,
             toolCallsExecuted: 2,
             conversationHistory: [],
@@ -234,15 +234,15 @@ describe('runAgenticRelease', () => {
         expect(call.maxIterations).toBe(40);
     });
 
-    it('should parse release notes from JSON format', async () => {
+    it('should parse release notes from new format', async () => {
         const { runAgentic } = await import('../../src/agentic/executor');
 
         (runAgentic as any).mockResolvedValue({
-            finalMessage: `RELEASE_NOTES:
-{
-  "title": "JSON Format Release",
-  "body": "Release notes in JSON format"
-}`,
+            finalMessage: `RELEASE_TITLE:
+Format Test Release
+
+RELEASE_BODY:
+Release notes in the new format`,
             iterations: 3,
             toolCallsExecuted: 6,
             conversationHistory: [],
@@ -258,15 +258,15 @@ describe('runAgenticRelease', () => {
             logger: mockLogger,
         });
 
-        expect(result.releaseNotes.title).toBe('JSON Format Release');
-        expect(result.releaseNotes.body).toBe('Release notes in JSON format');
+        expect(result.releaseNotes.title).toBe('Format Test Release');
+        expect(result.releaseNotes.body).toBe('Release notes in the new format');
     });
 
-    it('should handle fallback parsing when JSON is invalid', async () => {
+    it('should handle fallback parsing when format markers are missing', async () => {
         const { runAgentic } = await import('../../src/agentic/executor');
 
         (runAgentic as any).mockResolvedValue({
-            finalMessage: 'This is a plain text release note without JSON format',
+            finalMessage: 'This is a plain text release note without format markers',
             iterations: 2,
             toolCallsExecuted: 3,
             conversationHistory: [],
@@ -295,11 +295,11 @@ describe('runAgenticRelease', () => {
         ];
 
         (runAgentic as any).mockResolvedValue({
-            finalMessage: `RELEASE_NOTES:
-{
-  "title": "With Metrics",
-  "body": "Test"
-}`,
+            finalMessage: `RELEASE_TITLE:
+With Metrics
+
+RELEASE_BODY:
+Test`,
             iterations: 3,
             toolCallsExecuted: 2,
             conversationHistory: [],
@@ -323,11 +323,11 @@ describe('runAgenticRelease', () => {
         const { runAgentic } = await import('../../src/agentic/executor');
 
         (runAgentic as any).mockResolvedValue({
-            finalMessage: `RELEASE_NOTES:
-{
-  "title": "Debug Mode",
-  "body": "Test"
-}`,
+            finalMessage: `RELEASE_TITLE:
+Debug Mode
+
+RELEASE_BODY:
+Test`,
             iterations: 1,
             toolCallsExecuted: 1,
             conversationHistory: [],
@@ -350,6 +350,39 @@ describe('runAgenticRelease', () => {
         expect(call.debug).toBe(true);
         expect(call.debugRequestFile).toBe('request.json');
         expect(call.debugResponseFile).toBe('response.json');
+    });
+
+    it('should clean JSON artifacts from leaked output', async () => {
+        const { runAgentic } = await import('../../src/agentic/executor');
+
+        // Simulate LLM accidentally outputting JSON wrapper
+        (runAgentic as any).mockResolvedValue({
+            finalMessage: `RELEASE_TITLE:
+Bug Fix Release
+
+RELEASE_BODY:
+{ "title": "Bug Fix Release", "body": "Fixed several critical bugs in the codebase.\n\nThis release includes:\n- Fix for memory leak\n- Improved error handling" }`,
+            iterations: 2,
+            toolCallsExecuted: 4,
+            conversationHistory: [],
+            toolMetrics: [],
+        });
+
+        const result = await runAgenticRelease({
+            fromRef: 'v1.0.0',
+            toRef: 'HEAD',
+            logContent: 'commit 1',
+            diffContent: 'diff',
+            storage: mockStorage,
+            logger: mockLogger,
+        });
+
+        expect(result.releaseNotes.title).toBe('Bug Fix Release');
+        // The body should be cleaned of JSON artifacts
+        expect(result.releaseNotes.body).not.toContain('{ "title"');
+        expect(result.releaseNotes.body).not.toContain('"body"');
+        expect(result.releaseNotes.body).toContain('Fixed several critical bugs');
+        expect(result.releaseNotes.body).toContain('- Fix for memory leak');
     });
 });
 
