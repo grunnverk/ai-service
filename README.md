@@ -1,10 +1,10 @@
-# @eldrforge/ai-service
+# @grunnverk/ai-service
 
 AI-powered content generation library with agentic capabilities for commit messages, release notes, and code reviews.
 
 ## Overview
 
-`@eldrforge/ai-service` is a TypeScript library that provides intelligent content generation powered by OpenAI's GPT models. It was extracted from the [kodrdriv](https://github.com/grunnverk/kodrdriv) automation tool to enable standalone use in any Node.js application.
+`@grunnverk/ai-service` is a TypeScript library that provides intelligent content generation powered by OpenAI's GPT models. It was extracted from the [kodrdriv](https://github.com/grunnverk/kodrdriv) automation tool to enable standalone use in any Node.js application.
 
 ### Key Features
 
@@ -27,13 +27,13 @@ AI-powered content generation library with agentic capabilities for commit messa
 ## Installation
 
 ```bash
-npm install @eldrforge/ai-service
+npm install @grunnverk/ai-service
 ```
 
 ### Required Dependencies
 
 ```bash
-npm install openai @riotprompt/riotprompt @eldrforge/git-tools
+npm install openai @riotprompt/riotprompt @grunnverk/git-tools
 ```
 
 ### Optional Dependencies
@@ -47,7 +47,7 @@ npm install winston  # For logging support
 ### 1. Setup OpenAI API Key
 
 ```typescript
-import { createCompletion } from '@eldrforge/ai-service';
+import { createCompletion } from '@grunnverk/ai-service';
 
 // Set your OpenAI API key
 process.env.OPENAI_API_KEY = 'sk-...';
@@ -56,7 +56,7 @@ process.env.OPENAI_API_KEY = 'sk-...';
 ### 2. Generate a Commit Message (Traditional Mode)
 
 ```typescript
-import { createCommitPrompt, createCompletionWithRetry } from '@eldrforge/ai-service';
+import { createCommitPrompt, createCompletionWithRetry } from '@grunnverk/ai-service';
 import { execSync } from 'child_process';
 
 // Get staged diff
@@ -80,7 +80,7 @@ console.log('Suggested commit message:', response.choices[0].message.content);
 ### 3. Generate Release Notes (Agentic Mode)
 
 ```typescript
-import { runAgenticRelease } from '@eldrforge/ai-service';
+import { runAgenticRelease } from '@grunnverk/ai-service';
 import { execSync } from 'child_process';
 
 // Get git log and diff between versions
@@ -112,7 +112,7 @@ Create a complete CLI tool for generating commit messages:
 
 ```typescript
 #!/usr/bin/env node
-import { runAgenticCommit } from '@eldrforge/ai-service';
+import { runAgenticCommit } from '@grunnverk/ai-service';
 import { execSync } from 'child_process';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -216,7 +216,7 @@ npx tsx generate-commit.ts
 Automatically generate release notes and create GitHub releases:
 
 ```typescript
-import { runAgenticRelease } from '@eldrforge/ai-service';
+import { runAgenticRelease } from '@grunnverk/ai-service';
 import { execSync } from 'child_process';
 import { Octokit } from '@octokit/rest';
 import * as fs from 'fs/promises';
@@ -327,7 +327,7 @@ import {
   type Tool,
   type ToolContext,
   runAgentic
-} from '@eldrforge/ai-service';
+} from '@grunnverk/ai-service';
 
 // Create a custom tool
 const checkTestCoverage: Tool = {
@@ -385,7 +385,7 @@ async function analyzeWithCustomTools() {
   registry.register(checkTestCoverage);
 
   // You can also register built-in tools
-  const { createCommitTools } = await import('@eldrforge/ai-service');
+  const { createCommitTools } = await import('@grunnverk/ai-service');
   const commitTools = createCommitTools();
   registry.registerAll(commitTools);
 
@@ -425,7 +425,7 @@ import {
   getUserChoice,
   editContentInEditor,
   STANDARD_CHOICES
-} from '@eldrforge/ai-service';
+} from '@grunnverk/ai-service';
 import { execSync } from 'child_process';
 
 async function interactiveCommit() {
@@ -1124,7 +1124,7 @@ if (process.stdin.isTTY) {
 OpenAI has rate limits. Implement retry logic:
 
 ```typescript
-import { createCompletionWithRetry } from '@eldrforge/ai-service';
+import { createCompletionWithRetry } from '@grunnverk/ai-service';
 
 // This already includes retry logic
 const response = await createCompletionWithRetry(
@@ -1182,7 +1182,7 @@ import type {
   InteractiveOptions,
   EditorOptions,
   AIConfig,
-} from '@eldrforge/ai-service';
+} from '@grunnverk/ai-service';
 ```
 
 ## Performance Considerations
@@ -1238,7 +1238,7 @@ Apache-2.0
 ## Related Projects
 
 - **[kodrdriv](https://github.com/grunnverk/kodrdriv)** - Full automation toolkit that uses this library
-- **[@eldrforge/git-tools](https://www.npmjs.com/package/@eldrforge/git-tools)** - Git utility functions
+- **[@grunnverk/git-tools](https://www.npmjs.com/package/@grunnverk/git-tools)** - Git utility functions
 - **[@riotprompt/riotprompt](https://www.npmjs.com/package/@riotprompt/riotprompt)** - Structured prompt builder
 
 ## Support

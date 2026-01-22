@@ -1,6 +1,6 @@
 import { OpenAI } from 'openai';
 import type { ChatCompletionMessageParam } from 'openai/resources';
-import { safeJsonParse } from '@eldrforge/git-tools';
+import { safeJsonParse } from '@grunnverk/git-tools';
 import fs from 'fs';
 import { getLogger } from './logger';
 import type { AIConfig, Transcription, StorageAdapter, Logger } from './types';
@@ -150,7 +150,7 @@ export async function createCompletion(
         if (isNaN(timeoutMs) || timeoutMs <= 0) {
             throw new OpenAIError('Invalid OPENAI_TIMEOUT_MS value - must be a positive number');
         }
-        
+
         // Support project-scoped API keys by including project ID if provided
         const projectId = process.env.OPENAI_PROJECT_ID;
         openai = new OpenAI({

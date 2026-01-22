@@ -52,7 +52,7 @@ vi.mock('fs', () => ({
 }));
 
 // Mock safeJsonParse
-vi.mock('@eldrforge/git-tools', () => ({
+vi.mock('@grunnverk/git-tools', () => ({
     safeJsonParse: vi.fn((json: string) => JSON.parse(json)),
 }));
 

@@ -1,5 +1,5 @@
 /**
- * @eldrforge/ai-service
+ * @grunnverk/ai-service
  *
  * AI-powered content generation for automation tools.
  * Provides OpenAI integration with structured prompts for

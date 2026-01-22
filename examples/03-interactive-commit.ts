@@ -20,7 +20,7 @@ import {
     getUserChoice,
     editContentInEditor,
     STANDARD_CHOICES,
-} from '@eldrforge/ai-service';
+} from '@grunnverk/ai-service';
 import { execSync } from 'child_process';
 
 async function main() {

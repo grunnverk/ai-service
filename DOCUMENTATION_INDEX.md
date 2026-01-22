@@ -1,6 +1,6 @@
 # Documentation Index
 
-Complete guide to `@eldrforge/ai-service` documentation.
+Complete guide to `@grunnverk/ai-service` documentation.
 
 ## 📚 Documentation Overview
 

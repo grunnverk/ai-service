@@ -1,5 +1,5 @@
 {
-  "name": "@eldrforge/ai-service",
+  "name": "@grunnverk/ai-service",
   "version": "1.0.2-dev.0",
   "description": "AI-powered content generation for automation - OpenAI integration with structured prompts",
   "main": "dist/index.js",
@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
-    "@eldrforge/git-tools": "^1.0.1",
+    "@grunnverk/git-tools": "^1.0.1",
     "@google/generative-ai": "^0.24.1",
     "@riotprompt/riotprompt": "^0.0.21",
     "openai": "^6.3.0",

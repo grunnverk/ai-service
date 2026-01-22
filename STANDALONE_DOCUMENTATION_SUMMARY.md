@@ -1,10 +1,10 @@
 # Standalone Documentation Summary
 
-This document summarizes the comprehensive standalone documentation created for `@eldrforge/ai-service`.
+This document summarizes the comprehensive standalone documentation created for `@grunnverk/ai-service`.
 
 ## Overview
 
-The `@eldrforge/ai-service` library has been fully documented as a standalone project that can be used independently of kodrdriv. The documentation includes everything needed for developers to integrate this library into their own projects.
+The `@grunnverk/ai-service` library has been fully documented as a standalone project that can be used independently of kodrdriv. The documentation includes everything needed for developers to integrate this library into their own projects.
 
 ## Documentation Created
 
@@ -384,7 +384,7 @@ The documentation is successful if:
 
 ## Conclusion
 
-The `@eldrforge/ai-service` library now has comprehensive, standalone documentation that:
+The `@grunnverk/ai-service` library now has comprehensive, standalone documentation that:
 
 - ✅ Enables independent use outside of kodrdriv
 - ✅ Provides clear examples for all major use cases

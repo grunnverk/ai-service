@@ -1,4 +1,4 @@
-# @eldrforge/ai-service - Agentic Guide
+# @grunnverk/ai-service - Agentic Guide
 
 ## Purpose
 
@@ -15,7 +15,7 @@ AI-powered content generation for automation. Provides OpenAI integration with s
 ## Usage
 
 ```typescript
-import { createAI, AgenticCommitExecutor } from '@eldrforge/ai-service';
+import { createAI, AgenticCommitExecutor } from '@grunnverk/ai-service';
 
 // Initialize AI service
 const ai = createAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -27,7 +27,7 @@ await executor.execute();
 
 ## Dependencies
 
-- @eldrforge/git-tools - Git operations
+- @grunnverk/git-tools - Git operations
 - openai - OpenAI API client
 - @riotprompt/riotprompt - Prompt templating
 

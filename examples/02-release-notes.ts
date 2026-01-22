@@ -13,7 +13,7 @@
 
 /* eslint-disable no-console */
 
-import { runAgenticRelease } from '@eldrforge/ai-service';
+import { runAgenticRelease } from '@grunnverk/ai-service';
 import { execSync } from 'child_process';
 import * as fs from 'fs/promises';
 import * as path from 'path';

@@ -3,7 +3,7 @@ import { createReleaseTools } from '../../src/tools/release-tools';
 import type { ToolContext } from '../../src/tools/types';
 
 // Mock git-tools
-vi.mock('@eldrforge/git-tools', () => ({
+vi.mock('@grunnverk/git-tools', () => ({
     run: vi.fn(),
 }));
 
@@ -16,7 +16,7 @@ describe('Release Tools', () => {
         vi.clearAllMocks();
         tools = createReleaseTools();
 
-        const gitTools = await import('@eldrforge/git-tools');
+        const gitTools = await import('@grunnverk/git-tools');
         mockRun = gitTools.run as any;
 
         mockContext = {

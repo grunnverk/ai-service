@@ -1,6 +1,6 @@
 # Usage Guide
 
-Comprehensive guide for using `@eldrforge/ai-service` as a standalone library.
+Comprehensive guide for using `@grunnverk/ai-service` as a standalone library.
 
 ## Table of Contents
 
@@ -21,13 +21,13 @@ Comprehensive guide for using `@eldrforge/ai-service` as a standalone library.
 ### Basic Installation
 
 ```bash
-npm install @eldrforge/ai-service
+npm install @grunnverk/ai-service
 ```
 
 ### Required Dependencies
 
 ```bash
-npm install openai @riotprompt/riotprompt @eldrforge/git-tools
+npm install openai @riotprompt/riotprompt @grunnverk/git-tools
 ```
 
 ### Optional Dependencies
@@ -106,7 +106,7 @@ openaiReasoning: 'high'    // Most thorough, slower
 **Example:**
 
 ```typescript
-import { createCommitPrompt, createCompletionWithRetry } from '@eldrforge/ai-service';
+import { createCommitPrompt, createCompletionWithRetry } from '@grunnverk/ai-service';
 
 const { prompt } = await createCommitPrompt(
   { overridePaths: [], overrides: true },
@@ -147,7 +147,7 @@ const response = await createCompletionWithRetry(prompt.messages, {
 **Example:**
 
 ```typescript
-import { runAgenticCommit } from '@eldrforge/ai-service';
+import { runAgenticCommit } from '@grunnverk/ai-service';
 
 const result = await runAgenticCommit({
   changedFiles: ['src/api.ts', 'src/types.ts'],
@@ -162,7 +162,7 @@ const result = await runAgenticCommit({
 ### Basic Agentic Commit
 
 ```typescript
-import { runAgenticCommit } from '@eldrforge/ai-service';
+import { runAgenticCommit } from '@grunnverk/ai-service';
 import { execSync } from 'child_process';
 
 // Get staged changes
@@ -240,7 +240,7 @@ if (result.suggestedSplits.length > 0) {
 For faster, simpler generation:
 
 ```typescript
-import { createCommitPrompt, createCompletionWithRetry } from '@eldrforge/ai-service';
+import { createCommitPrompt, createCompletionWithRetry } from '@grunnverk/ai-service';
 
 const { prompt } = await createCommitPrompt(
   { overridePaths: [], overrides: true },
@@ -267,7 +267,7 @@ const commitMessage = response.choices[0].message.content;
 ### Basic Agentic Release
 
 ```typescript
-import { runAgenticRelease } from '@eldrforge/ai-service';
+import { runAgenticRelease } from '@grunnverk/ai-service';
 import { execSync } from 'child_process';
 
 const fromRef = 'v1.0.0';
@@ -393,7 +393,7 @@ Object.entries(toolUsage)
 ### Basic Review Prompt
 
 ```typescript
-import { createReviewPrompt, createCompletionWithRetry } from '@eldrforge/ai-service';
+import { createReviewPrompt, createCompletionWithRetry } from '@grunnverk/ai-service';
 
 const { prompt } = await createReviewPrompt(
   { overridePaths: [], overrides: true },
@@ -422,7 +422,7 @@ const review = response.choices[0].message.content;
 Get single-key input from users:
 
 ```typescript
-import { getUserChoice, STANDARD_CHOICES } from '@eldrforge/ai-service';
+import { getUserChoice, STANDARD_CHOICES } from '@grunnverk/ai-service';
 
 const choice = await getUserChoice(
   'What would you like to do?',
@@ -469,7 +469,7 @@ const choice = await getUserChoice(
 Open content in user's editor:
 
 ```typescript
-import { editContentInEditor } from '@eldrforge/ai-service';
+import { editContentInEditor } from '@grunnverk/ai-service';
 
 const result = await editContentInEditor(
   'Initial commit message',
@@ -490,7 +490,7 @@ console.log('Was edited:', result.wasEdited);
 Get structured feedback for improvement:
 
 ```typescript
-import { getLLMFeedbackInEditor } from '@eldrforge/ai-service';
+import { getLLMFeedbackInEditor } from '@grunnverk/ai-service';
 
 const feedback = await getLLMFeedbackInEditor(
   'commit message',
@@ -512,7 +512,7 @@ const improvedResult = await runAgenticCommit({
 Ensure interactive features are available:
 
 ```typescript
-import { requireTTY } from '@eldrforge/ai-service';
+import { requireTTY } from '@grunnverk/ai-service';
 
 try {
   requireTTY('This feature requires a terminal');
@@ -532,7 +532,7 @@ try {
 Implement custom storage for AI-generated content:
 
 ```typescript
-import { type StorageAdapter } from '@eldrforge/ai-service';
+import { type StorageAdapter } from '@grunnverk/ai-service';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -603,7 +603,7 @@ class S3StorageAdapter implements StorageAdapter {
 Integrate with your logging system:
 
 ```typescript
-import { type Logger } from '@eldrforge/ai-service';
+import { type Logger } from '@grunnverk/ai-service';
 import winston from 'winston';
 
 const winstonLogger = winston.createLogger({
@@ -666,7 +666,7 @@ The library provides 13 tools for release analysis and 8 for commit analysis.
 ### Creating Custom Tools
 
 ```typescript
-import { type Tool, createToolRegistry } from '@eldrforge/ai-service';
+import { type Tool, createToolRegistry } from '@grunnverk/ai-service';
 
 const myCustomTool: Tool = {
   name: 'check_security',
@@ -703,7 +703,7 @@ const myCustomTool: Tool = {
 ### Registering Custom Tools
 
 ```typescript
-import { createToolRegistry, createCommitTools } from '@eldrforge/ai-service';
+import { createToolRegistry, createCommitTools } from '@grunnverk/ai-service';
 
 const registry = createToolRegistry({
   workingDirectory: process.cwd(),

@@ -12,7 +12,7 @@
 
 /* eslint-disable no-console */
 
-import { runAgenticCommit } from '@eldrforge/ai-service';
+import { runAgenticCommit } from '@grunnverk/ai-service';
 import { execSync } from 'child_process';
 
 async function main() {

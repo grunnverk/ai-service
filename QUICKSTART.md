@@ -1,11 +1,11 @@
 # Quick Start Guide
 
-Get up and running with `@eldrforge/ai-service` in 5 minutes.
+Get up and running with `@grunnverk/ai-service` in 5 minutes.
 
 ## 1. Install
 
 ```bash
-npm install @eldrforge/ai-service openai @riotprompt/riotprompt @eldrforge/git-tools
+npm install @grunnverk/ai-service openai @riotprompt/riotprompt @grunnverk/git-tools
 ```
 
 ## 2. Set API Key
@@ -19,7 +19,7 @@ export OPENAI_API_KEY=sk-your-api-key-here
 Create a file `commit.ts`:
 
 ```typescript
-import { runAgenticCommit } from '@eldrforge/ai-service';
+import { runAgenticCommit } from '@grunnverk/ai-service';
 import { execSync } from 'child_process';
 
 const diffContent = execSync('git diff --staged', { encoding: 'utf8' });
@@ -53,7 +53,7 @@ npx tsx commit.ts
 Create a file `release.ts`:
 
 ```typescript
-import { runAgenticRelease } from '@eldrforge/ai-service';
+import { runAgenticRelease } from '@grunnverk/ai-service';
 import { execSync } from 'child_process';
 
 const fromRef = 'v1.0.0';
@@ -92,7 +92,7 @@ npx tsx release.ts
 For simpler use cases without tool-calling:
 
 ```typescript
-import { createCommitPrompt, createCompletionWithRetry } from '@eldrforge/ai-service';
+import { createCommitPrompt, createCompletionWithRetry } from '@grunnverk/ai-service';
 import { execSync } from 'child_process';
 
 const diffContent = execSync('git diff --staged', { encoding: 'utf8' });
