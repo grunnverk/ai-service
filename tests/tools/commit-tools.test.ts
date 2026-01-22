@@ -3,11 +3,11 @@ import { createCommitTools } from '../../src/tools/commit-tools';
 import type { StorageAdapter } from '../../src/types';
 
 // Mock git-tools
-vi.mock('@eldrforge/git-tools', () => ({
+vi.mock('@grunnverk/git-tools', () => ({
     run: vi.fn(),
 }));
 
-import { run as mockRun } from '@eldrforge/git-tools';
+import { run as mockRun } from '@grunnverk/git-tools';
 
 describe('Commit Tools', () => {
     let mockStorage: StorageAdapter;

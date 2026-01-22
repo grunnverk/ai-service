@@ -1,6 +1,6 @@
 # Examples
 
-This directory contains practical examples demonstrating how to use `@eldrforge/ai-service` as a standalone library.
+This directory contains practical examples demonstrating how to use `@grunnverk/ai-service` as a standalone library.
 
 ## Prerequisites
 
@@ -212,7 +212,7 @@ npm run release v1.0.0 v1.1.0
 ### In Your Own Scripts
 
 ```typescript
-import { runAgenticCommit } from '@eldrforge/ai-service';
+import { runAgenticCommit } from '@grunnverk/ai-service';
 
 // Your custom logic here
 const result = await runAgenticCommit({
@@ -228,7 +228,7 @@ const result = await runAgenticCommit({
 
 ```typescript
 import express from 'express';
-import { runAgenticCommit } from '@eldrforge/ai-service';
+import { runAgenticCommit } from '@grunnverk/ai-service';
 
 const app = express();
 
@@ -293,7 +293,7 @@ git log --oneline  # See commits
 
 Install dependencies:
 ```bash
-npm install @eldrforge/ai-service openai @riotprompt/riotprompt
+npm install @grunnverk/ai-service openai @riotprompt/riotprompt
 ```
 
 ## Next Steps

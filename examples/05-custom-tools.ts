@@ -16,7 +16,7 @@ import {
     runAgentic,
     type Tool,
     type ToolContext,
-} from '@eldrforge/ai-service';
+} from '@grunnverk/ai-service';
 import { execSync } from 'child_process';
 import * as fs from 'fs/promises';
 import * as path from 'path';

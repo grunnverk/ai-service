@@ -1,5 +1,5 @@
 import type { Tool, ToolContext } from './types';
-import { run } from '@eldrforge/git-tools';
+import { run } from '@grunnverk/git-tools';
 import * as path from 'path';
 import * as fs from 'fs';
 

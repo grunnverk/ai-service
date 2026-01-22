@@ -1,6 +1,6 @@
 # Integration Guide
 
-Guide for integrating `@eldrforge/ai-service` into your existing tools and workflows.
+Guide for integrating `@grunnverk/ai-service` into your existing tools and workflows.
 
 ## Table of Contents
 
@@ -32,7 +32,7 @@ kodrdriv release --agentic
 
 ```typescript
 // Using the library directly
-import { runAgenticCommit, runAgenticRelease } from '@eldrforge/ai-service';
+import { runAgenticCommit, runAgenticRelease } from '@grunnverk/ai-service';
 
 // Commit generation
 const commitResult = await runAgenticCommit({
@@ -67,7 +67,7 @@ const releaseResult = await runAgenticRelease({
 kodrdriv's file system operations are now abstracted through the `StorageAdapter` interface:
 
 ```typescript
-import { type StorageAdapter } from '@eldrforge/ai-service';
+import { type StorageAdapter } from '@grunnverk/ai-service';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -99,7 +99,7 @@ const kodrdrivStyleStorage: StorageAdapter = {
 
 ```typescript
 #!/usr/bin/env node
-import { runAgenticCommit } from '@eldrforge/ai-service';
+import { runAgenticCommit } from '@grunnverk/ai-service';
 import { Command } from 'commander';
 import { execSync } from 'child_process';
 
@@ -195,7 +195,7 @@ const result = await runAgenticCommit({
 
 ```typescript
 import express from 'express';
-import { runAgenticCommit, runAgenticRelease } from '@eldrforge/ai-service';
+import { runAgenticCommit, runAgenticRelease } from '@grunnverk/ai-service';
 
 const app = express();
 app.use(express.json());
@@ -330,14 +330,14 @@ jobs:
           node-version: '18'
 
       - name: Install dependencies
-        run: npm install @eldrforge/ai-service openai @riotprompt/riotprompt
+        run: npm install @grunnverk/ai-service openai @riotprompt/riotprompt
 
       - name: Generate release notes
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           node -e "
-          import { runAgenticRelease } from '@eldrforge/ai-service';
+          import { runAgenticRelease } from '@grunnverk/ai-service';
           import { execSync } from 'child_process';
           import * as fs from 'fs/promises';
 
@@ -377,7 +377,7 @@ generate-release-notes:
   only:
     - tags
   script:
-    - npm install @eldrforge/ai-service openai @riotprompt/riotprompt
+    - npm install @grunnverk/ai-service openai @riotprompt/riotprompt
     - node generate-release.js
   artifacts:
     paths:
@@ -397,7 +397,7 @@ pipeline {
     stages {
         stage('Generate Release Notes') {
             steps {
-                sh 'npm install @eldrforge/ai-service openai @riotprompt/riotprompt'
+                sh 'npm install @grunnverk/ai-service openai @riotprompt/riotprompt'
                 sh 'node generate-release.js'
             }
         }
@@ -417,7 +417,7 @@ pipeline {
 
 ```typescript
 import * as vscode from 'vscode';
-import { runAgenticCommit } from '@eldrforge/ai-service';
+import { runAgenticCommit } from '@grunnverk/ai-service';
 import { execSync } from 'child_process';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -550,7 +550,7 @@ COMMIT_SOURCE=$2
 if [ -z "$COMMIT_SOURCE" ]; then
   # Generate commit message
   node -e "
-  import { runAgenticCommit } from '@eldrforge/ai-service';
+  import { runAgenticCommit } from '@grunnverk/ai-service';
   import { execSync } from 'child_process';
   import * as fs from 'fs/promises';
 
@@ -607,7 +607,7 @@ echo "$(date): AI-generated commit" >> .git/ai-commits.log
 
 ```typescript
 // scripts/generate-commit.js
-import { runAgenticCommit } from '@eldrforge/ai-service';
+import { runAgenticCommit } from '@grunnverk/ai-service';
 import { execSync } from 'child_process';
 
 async function main() {
@@ -635,7 +635,7 @@ npx husky add .husky/prepare-commit-msg "node scripts/generate-commit.js"
 
 ```typescript
 // .cz-config.js
-import { runAgenticCommit } from '@eldrforge/ai-service';
+import { runAgenticCommit } from '@grunnverk/ai-service';
 
 module.exports = {
   prompter: async (cz, commit) => {

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createPublishTools } from '../../src/tools/publish-tools';
 
 // Mock git-tools
-vi.mock('@eldrforge/git-tools', () => ({
+vi.mock('@grunnverk/git-tools', () => ({
     run: vi.fn(),
     isBranchInSyncWithRemote: vi.fn(),
     safeSyncBranchWithRemote: vi.fn(),
@@ -38,7 +38,7 @@ describe('Publish Tools', () => {
 
     describe('check_git_status', () => {
         it('should check git status successfully', async () => {
-            const { run } = await import('@eldrforge/git-tools');
+            const { run } = await import('@grunnverk/git-tools');
             (run as any)
                 .mockResolvedValueOnce({ stdout: 'main' })
                 .mockResolvedValueOnce({ stdout: '' })
@@ -53,7 +53,7 @@ describe('Publish Tools', () => {
         });
 
         it('should detect uncommitted changes', async () => {
-            const { run } = await import('@eldrforge/git-tools');
+            const { run } = await import('@grunnverk/git-tools');
             (run as any)
                 .mockResolvedValueOnce({ stdout: 'feature' })
                 .mockResolvedValueOnce({ stdout: 'M src/index.ts\nA src/new.ts' })
@@ -67,7 +67,7 @@ describe('Publish Tools', () => {
         });
 
         it('should throw on error', async () => {
-            const { run } = await import('@eldrforge/git-tools');
+            const { run } = await import('@grunnverk/git-tools');
             (run as any).mockRejectedValue(new Error('Not a git repository'));
 
             const tool = tools.find(t => t.name === 'check_git_status')!;
@@ -78,7 +78,7 @@ describe('Publish Tools', () => {
 
     describe('check_branch_sync', () => {
         it('should check branch sync status', async () => {
-            const { localBranchExists, isBranchInSyncWithRemote } = await import('@eldrforge/git-tools');
+            const { localBranchExists, isBranchInSyncWithRemote } = await import('@grunnverk/git-tools');
             (localBranchExists as any).mockResolvedValue(true);
             (isBranchInSyncWithRemote as any).mockResolvedValue({
                 inSync: true,
@@ -95,7 +95,7 @@ describe('Publish Tools', () => {
         });
 
         it('should detect diverged branch', async () => {
-            const { localBranchExists, isBranchInSyncWithRemote } = await import('@eldrforge/git-tools');
+            const { localBranchExists, isBranchInSyncWithRemote } = await import('@grunnverk/git-tools');
             (localBranchExists as any).mockResolvedValue(true);
             (isBranchInSyncWithRemote as any).mockResolvedValue({
                 inSync: false,
@@ -111,7 +111,7 @@ describe('Publish Tools', () => {
         });
 
         it('should handle non-existent branch', async () => {
-            const { localBranchExists } = await import('@eldrforge/git-tools');
+            const { localBranchExists } = await import('@grunnverk/git-tools');
             (localBranchExists as any).mockResolvedValue(false);
 
             const tool = tools.find(t => t.name === 'check_branch_sync')!;
@@ -124,7 +124,7 @@ describe('Publish Tools', () => {
 
     describe('analyze_divergence', () => {
         it('should analyze branch divergence', async () => {
-            const { run } = await import('@eldrforge/git-tools');
+            const { run } = await import('@grunnverk/git-tools');
             (run as any)
                 .mockResolvedValueOnce({ stdout: 'abc123 Commit 1\ndef456 Commit 2' })
                 .mockResolvedValueOnce({ stdout: 'ghi789 Remote commit' })
@@ -142,7 +142,7 @@ describe('Publish Tools', () => {
         });
 
         it('should detect fast-forward possibility', async () => {
-            const { run } = await import('@eldrforge/git-tools');
+            const { run } = await import('@grunnverk/git-tools');
             (run as any)
                 .mockResolvedValueOnce({ stdout: '' })
                 .mockResolvedValueOnce({ stdout: 'abc123 New commit' })
@@ -160,7 +160,7 @@ describe('Publish Tools', () => {
 
     describe('get_commit_log', () => {
         it('should get commit log in oneline format', async () => {
-            const { run } = await import('@eldrforge/git-tools');
+            const { run } = await import('@grunnverk/git-tools');
             (run as any).mockResolvedValue({
                 stdout: 'abc123 - Initial commit (Author, 1 day ago)\ndef456 - Second commit (Author, 2 days ago)'
             });
@@ -172,7 +172,7 @@ describe('Publish Tools', () => {
         });
 
         it('should get commit log in full format', async () => {
-            const { run } = await import('@eldrforge/git-tools');
+            const { run } = await import('@grunnverk/git-tools');
             (run as any).mockResolvedValue({
                 stdout: 'abc123\nAuthor <email>\n2024-01-01\nCommit message\n\nBody\n---'
             });
@@ -186,7 +186,7 @@ describe('Publish Tools', () => {
 
     describe('get_branch_info', () => {
         it('should get branch info for existing branch', async () => {
-            const { run, localBranchExists } = await import('@eldrforge/git-tools');
+            const { run, localBranchExists } = await import('@grunnverk/git-tools');
             (localBranchExists as any).mockResolvedValue(true);
             (run as any)
                 .mockResolvedValueOnce({ stdout: 'origin/main' })
@@ -203,7 +203,7 @@ describe('Publish Tools', () => {
         });
 
         it('should handle branch without tracking', async () => {
-            const { run, localBranchExists } = await import('@eldrforge/git-tools');
+            const { run, localBranchExists } = await import('@grunnverk/git-tools');
             (localBranchExists as any).mockResolvedValue(true);
             (run as any)
                 .mockRejectedValueOnce(new Error('No upstream'))
@@ -217,7 +217,7 @@ describe('Publish Tools', () => {
         });
 
         it('should handle non-existent local branch', async () => {
-            const { run, localBranchExists } = await import('@eldrforge/git-tools');
+            const { run, localBranchExists } = await import('@grunnverk/git-tools');
             (localBranchExists as any).mockResolvedValue(false);
             (run as any).mockResolvedValueOnce({ stdout: '' });
 
@@ -230,7 +230,7 @@ describe('Publish Tools', () => {
 
     describe('sync_branch', () => {
         it('should sync branch successfully', async () => {
-            const { safeSyncBranchWithRemote } = await import('@eldrforge/git-tools');
+            const { safeSyncBranchWithRemote } = await import('@grunnverk/git-tools');
             (safeSyncBranchWithRemote as any).mockResolvedValue({
                 success: true,
                 conflictResolutionRequired: false
@@ -244,7 +244,7 @@ describe('Publish Tools', () => {
         });
 
         it('should handle sync failure due to conflicts', async () => {
-            const { safeSyncBranchWithRemote } = await import('@eldrforge/git-tools');
+            const { safeSyncBranchWithRemote } = await import('@grunnverk/git-tools');
             (safeSyncBranchWithRemote as any).mockResolvedValue({
                 success: false,
                 conflictResolutionRequired: true,
@@ -261,7 +261,7 @@ describe('Publish Tools', () => {
 
     describe('get_diff_stats', () => {
         it('should get diff statistics', async () => {
-            const { run } = await import('@eldrforge/git-tools');
+            const { run } = await import('@grunnverk/git-tools');
             (run as any)
                 .mockResolvedValueOnce({ stdout: '3 files changed, 100 insertions(+), 20 deletions(-)' })
                 .mockResolvedValueOnce({ stdout: 'M\tsrc/index.ts\nA\tsrc/new.ts' });
@@ -277,7 +277,7 @@ describe('Publish Tools', () => {
         });
 
         it('should exclude file list when requested', async () => {
-            const { run } = await import('@eldrforge/git-tools');
+            const { run } = await import('@grunnverk/git-tools');
             (run as any).mockResolvedValue({ stdout: 'No differences' });
 
             const tool = tools.find(t => t.name === 'get_diff_stats')!;
@@ -293,7 +293,7 @@ describe('Publish Tools', () => {
 
     describe('check_conflicts', () => {
         it('should detect no conflicts', async () => {
-            const { run } = await import('@eldrforge/git-tools');
+            const { run } = await import('@grunnverk/git-tools');
             (run as any)
                 .mockResolvedValueOnce({ stdout: 'base123' })
                 .mockResolvedValueOnce({ stdout: 'Clean merge output' });
@@ -309,7 +309,7 @@ describe('Publish Tools', () => {
         });
 
         it('should detect conflicts', async () => {
-            const { run } = await import('@eldrforge/git-tools');
+            const { run } = await import('@grunnverk/git-tools');
             (run as any)
                 .mockResolvedValueOnce({ stdout: 'base123' })
                 .mockResolvedValueOnce({ stdout: '<<<<<<< HEAD\nconflict content\n=======\nother content\n>>>>>>>' });
@@ -327,7 +327,7 @@ describe('Publish Tools', () => {
 
     describe('reset_branch', () => {
         it('should reset branch to target ref', async () => {
-            const { run } = await import('@eldrforge/git-tools');
+            const { run } = await import('@grunnverk/git-tools');
             (run as any)
                 .mockResolvedValueOnce({ stdout: '' })
                 .mockResolvedValueOnce({ stdout: '' })
@@ -344,7 +344,7 @@ describe('Publish Tools', () => {
         });
 
         it('should support different reset types', async () => {
-            const { run } = await import('@eldrforge/git-tools');
+            const { run } = await import('@grunnverk/git-tools');
             (run as any)
                 .mockResolvedValueOnce({ stdout: '' })
                 .mockResolvedValueOnce({ stdout: '' })

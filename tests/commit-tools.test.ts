@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createCommitTools } from '../src/tools/commit-tools';
-import * as gitTools from '@eldrforge/git-tools';
+import * as gitTools from '@grunnverk/git-tools';
 import * as fs from 'fs';
 
 // Mock the git-tools module
-vi.mock('@eldrforge/git-tools', () => ({
+vi.mock('@grunnverk/git-tools', () => ({
     run: vi.fn(),
 }));
 

@@ -11,7 +11,7 @@
 
 /* eslint-disable no-console */
 
-import { runAgenticCommit, type StorageAdapter } from '@eldrforge/ai-service';
+import { runAgenticCommit, type StorageAdapter } from '@grunnverk/ai-service';
 import { execSync } from 'child_process';
 import * as fs from 'fs/promises';
 import * as path from 'path';

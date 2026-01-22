@@ -52,7 +52,7 @@ export default defineConfig({
             external: [
                 'openai',
                 '@riotprompt/riotprompt',
-                '@eldrforge/git-tools',
+                '@grunnverk/git-tools',
                 'winston',
                 'fs',
                 'fs/promises',

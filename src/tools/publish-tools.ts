@@ -1,5 +1,5 @@
 import type { Tool, ToolContext } from './types';
-import { run, isBranchInSyncWithRemote, safeSyncBranchWithRemote, localBranchExists } from '@eldrforge/git-tools';
+import { run, isBranchInSyncWithRemote, safeSyncBranchWithRemote, localBranchExists } from '@grunnverk/git-tools';
 
 /**
  * Create tools for agentic publish workflows
