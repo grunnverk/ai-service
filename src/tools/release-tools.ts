@@ -269,7 +269,7 @@ function createGetFileDependenciesTool(): Tool {
 
                 for (const pattern of searchPatterns) {
                     try {
-                        const command = `git grep -l "${pattern}"`;
+                        const command = `git grep -l '${pattern}'`;
                         const output = await run(command, { cwd: workingDir });
                         if (output.stdout) {
                             results.push(`Files importing ${filePath}:\n${output.stdout}`);
