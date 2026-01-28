@@ -1,6 +1,6 @@
 {
   "name": "@grunnverk/ai-service",
-  "version": "1.5.2-dev.0",
+  "version": "1.5.2",
   "description": "AI-powered content generation for automation - OpenAI integration with structured prompts",
   "main": "dist/index.js",
   "type": "module",
@@ -23,7 +23,7 @@
     "build": "npm run lint && tsc --noEmit && vite build",
     "dev": "vite",
     "watch": "vite build --watch",
-    "test": "vitest run --coverage",
+    "test": "rm -rf coverage && vitest run --coverage",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
     "clean": "rm -rf dist",
