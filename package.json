@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
-    "@grunnverk/git-tools": "^1.5.3",
+    "@grunnverk/git-tools": "^1.5.4",
     "@google/generative-ai": "^0.24.1",
     "@riotprompt/riotprompt": "^0.0.21",
     "openai": "^6.3.0",
