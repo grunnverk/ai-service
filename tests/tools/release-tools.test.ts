@@ -226,17 +226,17 @@ describe('Release Tools', () => {
         });
 
         it('should handle partial failures', async () => {
-            // When the first command succeeds but subsequent ones fail
+            // When the first command succeeds but subsequent ones fail (grep returns no matches)
             mockRun
                 .mockResolvedValueOnce({ stdout: 'abc123 BREAKING CHANGE: removed API' })
-                .mockRejectedValueOnce(new Error('no matches'))
-                .mockRejectedValueOnce(new Error('no matches'));
+                .mockResolvedValueOnce({ stdout: '' }) // grep with || true returns empty but succeeds
+                .mockResolvedValueOnce({ stdout: '' }); // grep with || true returns empty but succeeds
 
             const tool = tools.find(t => t.name === 'get_breaking_changes')!;
             const result = await tool.execute({ fromRef: 'v1.0.0' }, mockContext);
 
-            // Should get the default message since errors cause catch block to execute
-            expect(result).toBe('No obvious breaking changes detected. Manual review recommended for API changes.');
+            // Should return the breaking change commit that was found
+            expect(result).toContain('BREAKING CHANGE');
         });
     });
 
