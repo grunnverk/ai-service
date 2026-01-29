@@ -316,7 +316,7 @@ function createGetFileDependenciesTool(): Tool {
                 for (const pattern of searchPatterns) {
                     try {
                         // Use -E for extended regex and properly escape the pattern
-                        const command = `git grep -l -E "${pattern.replace(/"/g, '\\"')}"`;
+                        const command = `git grep -l -E "${pattern.replace(/"/g, '\\\\"')}"`;
                         const output = await run(command, { cwd: workingDir });
                         if (output.stdout) {
                             results.push(`Files importing ${filePath}:\n${output.stdout}`);
