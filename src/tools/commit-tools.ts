@@ -306,15 +306,17 @@ function createGetFileDependenciesTool(): Tool {
                 const fileName = path.basename(filePath, path.extname(filePath));
 
                 // Search for imports of this file
+                // Use simpler patterns that avoid shell quoting issues
                 const searchPatterns = [
-                    `from.*['"].*${fileName}`,
-                    `import.*['"].*${fileName}`,
-                    `require\\(['"].*${fileName}`,
+                    `from.*${fileName}`,
+                    `import.*${fileName}`,
+                    `require.*${fileName}`,
                 ];
 
                 for (const pattern of searchPatterns) {
                     try {
-                        const command = `git grep -l "${pattern}"`;
+                        // Use -E for extended regex and properly escape the pattern
+                        const command = `git grep -l -E "${pattern.replace(/"/g, '\\\\"')}"`;
                         const output = await run(command, { cwd: workingDir });
                         if (output.stdout) {
                             results.push(`Files importing ${filePath}:\n${output.stdout}`);

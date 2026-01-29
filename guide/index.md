@@ -4,6 +4,11 @@
 
 AI-powered content generation for automation. Provides OpenAI integration with structured prompts, agentic executors, and comprehensive observability.
 
+## Documentation
+
+- **[Usage Guide](./usage.md)** - Comprehensive usage guide for all features
+- **[Integration Guide](./integration.md)** - Integrating ai-service into your tools and workflows
+
 ## Key Features
 
 - **Agentic Executors** - Structured workflows for commit, publish, and release
