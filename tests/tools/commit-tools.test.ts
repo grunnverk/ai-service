@@ -385,6 +385,40 @@ describe('Commit Tools', () => {
 
             expect(result).toBe('No files found that import the specified files');
         });
+
+        it('should skip non-code files like README.md', async () => {
+            const tools = createCommitTools();
+            const depsTool = tools.find(t => t.name === 'get_file_dependencies')!;
+
+            const result = await depsTool.execute(
+                { filePaths: ['README.md', 'package.json', '.gitignore'] },
+                { storage: mockStorage, workingDirectory: '/test', logger: mockLogger }
+            );
+
+            // Should not call git grep for non-code files
+            expect(vi.mocked(mockRun)).not.toHaveBeenCalled();
+            expect(result).toBe('No files found that import the specified files');
+        });
+
+        it('should skip non-code files but process code files', async () => {
+            const tools = createCommitTools();
+            const depsTool = tools.find(t => t.name === 'get_file_dependencies')!;
+
+            vi.mocked(mockRun).mockResolvedValue({ stdout: 'src/app.ts', stderr: '' } as any);
+
+            const result = await depsTool.execute(
+                { filePaths: ['README.md', 'src/utils.ts', 'package.json'] },
+                { storage: mockStorage, workingDirectory: '/test', logger: mockLogger }
+            );
+
+            // Should only call git grep once for the code file
+            expect(vi.mocked(mockRun)).toHaveBeenCalledTimes(1);
+            expect(vi.mocked(mockRun)).toHaveBeenCalledWith(
+                expect.stringContaining('utils'),
+                { cwd: '/test' }
+            );
+            expect(result).toContain('src/app.ts');
+        });
     });
 
     describe('get_recent_commits tool', () => {

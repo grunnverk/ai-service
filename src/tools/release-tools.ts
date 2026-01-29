@@ -166,7 +166,7 @@ function createSearchCodebaseTool(): Tool {
                 return output.stdout || 'No matches found';
             } catch (error: any) {
                 // git grep returns exit code 1 when no matches found
-                if (error.message.includes('exit code 1') || error.stderr?.includes('did not match any file')) {
+                if (error.code === 1 || error.message.includes('exit code 1') || error.stderr?.includes('did not match any file')) {
                     return 'No matches found';
                 }
                 throw new Error(`Search failed: ${error.message}`);
@@ -257,8 +257,17 @@ function createGetFileDependenciesTool(): Tool {
             const results: string[] = [];
 
             for (const filePath of filePaths) {
+                // Skip non-code files that cannot be imported
+                const ext = path.extname(filePath);
+                const nonCodeExtensions = ['.md', '.txt', '.json', '.yaml', '.yml', '.toml', '.lock', '.gitignore', '.npmrc'];
+                const basename = path.basename(filePath);
+
+                if (nonCodeExtensions.includes(ext) || basename === 'README' || basename.startsWith('.')) {
+                    continue; // Skip documentation and config files
+                }
+
                 // Extract filename without extension for searching imports
-                const fileName = path.basename(filePath, path.extname(filePath));
+                const fileName = path.basename(filePath, ext);
 
                 // Search for imports of this file
                 // Use simpler patterns that avoid shell quoting issues
@@ -679,30 +688,43 @@ function createGetBreakingChangesTool(): Tool {
 
             try {
                 // Search for BREAKING CHANGE in commit messages
-                const breakingCommits = await run(
-                    `git log --grep="BREAKING CHANGE" --oneline ${fromRef}..${toRef}`,
-                    { cwd: workingDir }
-                );
-                if (breakingCommits.stdout) {
-                    results.push(`Commits with BREAKING CHANGE:\n${breakingCommits.stdout}`);
+                try {
+                    const breakingCommits = await run(
+                        `git log --grep="BREAKING CHANGE" --oneline ${fromRef}..${toRef}`,
+                        { cwd: workingDir }
+                    );
+                    if (breakingCommits.stdout) {
+                        results.push(`Commits with BREAKING CHANGE:\n${breakingCommits.stdout}`);
+                    }
+                } catch {
+                    // No breaking change commits found
                 }
 
                 // Search for removed exports
-                const removedExports = await run(
-                    `git diff ${fromRef}..${toRef} | grep "^-export"`,
-                    { cwd: workingDir }
-                );
-                if (removedExports.stdout) {
-                    results.push(`\nRemoved exports (potential breaking):\n${removedExports.stdout}`);
+                // Note: grep returns exit code 1 when no matches found, so we need to handle that
+                try {
+                    const removedExports = await run(
+                        `git diff ${fromRef}..${toRef} | grep "^-export" || true`,
+                        { cwd: workingDir }
+                    );
+                    if (removedExports.stdout && removedExports.stdout.trim()) {
+                        results.push(`\nRemoved exports (potential breaking):\n${removedExports.stdout}`);
+                    }
+                } catch {
+                    // No removed exports found
                 }
 
                 // Search for changed function signatures
-                const changedSignatures = await run(
-                    `git diff ${fromRef}..${toRef} | grep -E "^[-+].*function|^[-+].*const.*=.*=>|^[-+].*interface|^[-+].*type.*="`,
-                    { cwd: workingDir }
-                );
-                if (changedSignatures.stdout) {
-                    results.push(`\nChanged function/type signatures (review for breaking changes):\n${changedSignatures.stdout.split('\n').slice(0, 20).join('\n')}`);
+                try {
+                    const changedSignatures = await run(
+                        `git diff ${fromRef}..${toRef} | grep -E "^[-+].*function|^[-+].*const.*=.*=>|^[-+].*interface|^[-+].*type.*=" || true`,
+                        { cwd: workingDir }
+                    );
+                    if (changedSignatures.stdout && changedSignatures.stdout.trim()) {
+                        results.push(`\nChanged function/type signatures (review for breaking changes):\n${changedSignatures.stdout.split('\n').slice(0, 20).join('\n')}`);
+                    }
+                } catch {
+                    // No changed signatures found
                 }
 
                 if (results.length === 0) {
@@ -710,12 +732,12 @@ function createGetBreakingChangesTool(): Tool {
                 }
 
                 return results.join('\n\n');
-            } catch {
-                // Some commands may fail if no matches found
+            } catch (error: any) {
+                // Unexpected error
                 if (results.length > 0) {
                     return results.join('\n\n');
                 }
-                return 'No obvious breaking changes detected. Manual review recommended for API changes.';
+                throw new Error(`Failed to check for breaking changes: ${error.message}`);
             }
         },
     };
