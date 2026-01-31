@@ -536,7 +536,7 @@ function createGroupFilesByConcernTool(): Tool {
 function createGetFileModificationTimesTool(): Tool {
     return {
         name: 'get_file_modification_times',
-        description: 'Get modification timestamps for changed files. Temporal proximity is one signal (among others) that can help identify related changes. Files modified close together MAY be part of the same logical change, but this is not guaranteed - always cross-reference with logical groupings.',
+        description: 'Get modification timestamps for changed files to detect work sessions spanning multiple hours. Most useful for large changesets (10+ files) to identify if changes should be split. For typical commits where all files were modified together, this provides limited value - focus on logical groupings instead.',
         category: 'Organization',
         cost: 'cheap',
         examples: [
@@ -628,6 +628,7 @@ function createGetFileModificationTimesTool(): Tool {
 
             if (clusters.length === 1) {
                 output += `All ${fileInfos.length} files were modified in a single work session.\n`;
+                output += `\n**Note**: Since all files were modified together, temporal proximity doesn't help determine commit structure. Focus on logical groupings (use group_files_by_concern) to decide if changes should be split.\n`;
             } else {
                 output += `Found ${clusters.length} distinct work sessions:\n\n`;
 
