@@ -330,7 +330,7 @@ jobs:
           node-version: '18'
 
       - name: Install dependencies
-        run: npm install @grunnverk/ai-service openai @riotprompt/riotprompt
+        run: npm install @grunnverk/ai-service openai @kjerneverk/riotprompt
 
       - name: Generate release notes
         env:
@@ -377,7 +377,7 @@ generate-release-notes:
   only:
     - tags
   script:
-    - npm install @grunnverk/ai-service openai @riotprompt/riotprompt
+    - npm install @grunnverk/ai-service openai @kjerneverk/riotprompt
     - node generate-release.js
   artifacts:
     paths:
@@ -397,7 +397,7 @@ pipeline {
     stages {
         stage('Generate Release Notes') {
             steps {
-                sh 'npm install @grunnverk/ai-service openai @riotprompt/riotprompt'
+                sh 'npm install @grunnverk/ai-service openai @kjerneverk/riotprompt'
                 sh 'node generate-release.js'
             }
         }

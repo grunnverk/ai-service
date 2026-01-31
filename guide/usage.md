@@ -27,7 +27,7 @@ npm install @grunnverk/ai-service
 ### Required Dependencies
 
 ```bash
-npm install openai @riotprompt/riotprompt @grunnverk/git-tools
+npm install openai @kjerneverk/riotprompt @grunnverk/git-tools
 ```
 
 ### Optional Dependencies

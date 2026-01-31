@@ -51,7 +51,7 @@ export default defineConfig({
         rollupOptions: {
             external: [
                 'openai',
-                '@riotprompt/riotprompt',
+                '@kjerneverk/riotprompt',
                 '@grunnverk/git-tools',
                 'winston',
                 'fs',

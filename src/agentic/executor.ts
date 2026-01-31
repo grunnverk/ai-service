@@ -2,7 +2,7 @@ import type { ChatCompletionMessageParam } from 'openai/resources';
 import { createCompletionWithRetry } from '../ai';
 import type { ToolRegistry } from '../tools/registry';
 import type { ToolResult } from '../tools/types';
-import { ConversationBuilder, type Model } from '@riotprompt/riotprompt';
+import { ConversationBuilder, type Model } from '@kjerneverk/riotprompt';
 
 export interface AgenticConfig {
     messages: ChatCompletionMessageParam[];

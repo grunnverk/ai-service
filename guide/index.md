@@ -34,7 +34,7 @@ await executor.execute();
 
 - @grunnverk/git-tools - Git operations
 - openai - OpenAI API client
-- @riotprompt/riotprompt - Prompt templating
+- @kjerneverk/riotprompt - Prompt templating
 
 ## Package Structure
 

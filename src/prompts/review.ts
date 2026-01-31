@@ -1,4 +1,4 @@
-import { Prompt, cook, type ContentItem } from '@riotprompt/riotprompt';
+import { Prompt, cook, type ContentItem } from '@kjerneverk/riotprompt';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { TemplateNames } from './templates';

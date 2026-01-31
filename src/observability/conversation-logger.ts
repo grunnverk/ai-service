@@ -5,7 +5,7 @@
  * to disk for later analysis.
  */
 
-import { ConversationLogger, type LogConfig } from '@riotprompt/riotprompt';
+import { ConversationLogger, type LogConfig } from '@kjerneverk/riotprompt';
 import type { Logger, StorageAdapter } from '../types';
 import path from 'path';
 

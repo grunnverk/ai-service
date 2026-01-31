@@ -10,7 +10,7 @@ import { runAgentic, type AgenticConfig, type ToolExecutionMetric } from './exec
 import { createToolRegistry } from '../tools/registry';
 import { createDependencyTools } from '../tools/dependency-tools';
 import type { StorageAdapter, Logger } from '../types';
-import { generateToolGuidance } from '@riotprompt/riotprompt';
+import { generateToolGuidance } from '@kjerneverk/riotprompt';
 
 export interface DependencyConflict {
     packageName: string;

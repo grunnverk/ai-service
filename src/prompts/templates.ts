@@ -6,7 +6,7 @@
  * for personas, instructions, and structure.
  */
 
-import { registerTemplates, type TemplateConfig } from '@riotprompt/riotprompt';
+import { registerTemplates, type TemplateConfig } from '@kjerneverk/riotprompt';
 
 /**
  * Initialize and register all prompt templates.
