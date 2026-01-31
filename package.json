@@ -47,7 +47,7 @@
     "node": ">=24.0.0"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.71.2",
+    "@anthropic-ai/sdk": "^0.72.1",
     "@grunnverk/git-tools": "^1.5.4",
     "@google/generative-ai": "^0.24.1",
     "@kjerneverk/riotprompt": "^1.0.6",
