@@ -5,7 +5,7 @@
  * maintaining compatibility with existing tool metrics.
  */
 
-import { MetricsCollector, type AgenticExecutionMetrics } from '@riotprompt/riotprompt';
+import { MetricsCollector, type AgenticExecutionMetrics } from '@kjerneverk/riotprompt';
 import type { Logger } from '../types';
 
 export interface ToolExecutionMetric {

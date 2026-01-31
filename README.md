@@ -12,7 +12,7 @@ AI-powered content generation library with agentic capabilities for commit messa
 - **📝 Traditional Mode**: Direct prompt-based generation for faster, simpler use cases
 - **🔧 Extensible Tool System**: 13+ specialized tools for codebase investigation and analysis
 - **💬 Interactive Features**: Built-in user prompts, editor integration, and feedback loops
-- **🎯 Structured Prompts**: Leverages [@riotprompt/riotprompt](https://www.npmjs.com/package/@riotprompt/riotprompt) for consistent, high-quality prompt engineering
+- **🎯 Structured Prompts**: Leverages [@kjerneverk/riotprompt](https://www.npmjs.com/package/@kjerneverk/riotprompt) for consistent, high-quality prompt engineering
 - **📊 Detailed Metrics**: Track tool usage, iterations, and AI reasoning effectiveness
 - **🔌 Flexible Integration**: Adapter-based design for easy integration with any storage or logging system
 
@@ -33,7 +33,7 @@ npm install @grunnverk/ai-service
 ### Required Dependencies
 
 ```bash
-npm install openai @riotprompt/riotprompt @grunnverk/git-tools
+npm install openai @kjerneverk/riotprompt @grunnverk/git-tools
 ```
 
 ### Optional Dependencies
@@ -1239,7 +1239,7 @@ Apache-2.0
 
 - **[kodrdriv](https://github.com/grunnverk/kodrdriv)** - Full automation toolkit that uses this library
 - **[@grunnverk/git-tools](https://www.npmjs.com/package/@grunnverk/git-tools)** - Git utility functions
-- **[@riotprompt/riotprompt](https://www.npmjs.com/package/@riotprompt/riotprompt)** - Structured prompt builder
+- **[@kjerneverk/riotprompt](https://www.npmjs.com/package/@kjerneverk/riotprompt)** - Structured prompt builder
 
 ## Support
 

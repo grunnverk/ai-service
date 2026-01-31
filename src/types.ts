@@ -109,5 +109,5 @@ export interface FeedbackOptions {
 /**
  * Re-export Prompt type from riotprompt for convenience
  */
-export type { Prompt, ContentItem } from '@riotprompt/riotprompt';
+export type { Prompt, ContentItem } from '@kjerneverk/riotprompt';
 

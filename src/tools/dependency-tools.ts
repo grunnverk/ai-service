@@ -35,7 +35,7 @@ function createGetNpmPackageInfoTool(): Tool {
             properties: {
                 packageName: {
                     type: 'string',
-                    description: 'The npm package name (e.g., "openai", "@riotprompt/riotprompt")',
+                    description: 'The npm package name (e.g., "openai", "@kjerneverk/riotprompt")',
                 },
             },
             required: ['packageName'],
@@ -115,9 +115,9 @@ function createCheckPeerDependenciesTool(): Tool {
         },
         examples: [
             {
-                scenario: 'Check if @riotprompt/riotprompt@0.0.21 is compatible with openai@4.104.0',
+                scenario: 'Check if @kjerneverk/riotprompt@1.0.6 is compatible with openai@4.104.0',
                 params: {
-                    packageName: '@riotprompt/riotprompt',
+                    packageName: '@kjerneverk/riotprompt',
                     packageVersion: '0.0.21',
                     dependencyName: 'openai',
                     dependencyVersion: '4.104.0',

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Define the mock class inside the mock factory to avoid hoisting issues
-vi.mock('@riotprompt/riotprompt', () => {
+vi.mock('@kjerneverk/riotprompt', () => {
     const MockConversationLogger = class {
         log = vi.fn();
         save = vi.fn();

@@ -293,7 +293,7 @@ git log --oneline  # See commits
 
 Install dependencies:
 ```bash
-npm install @grunnverk/ai-service openai @riotprompt/riotprompt
+npm install @grunnverk/ai-service openai @kjerneverk/riotprompt
 ```
 
 ## Next Steps

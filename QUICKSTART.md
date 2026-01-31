@@ -5,7 +5,7 @@ Get up and running with `@grunnverk/ai-service` in 5 minutes.
 ## 1. Install
 
 ```bash
-npm install @grunnverk/ai-service openai @riotprompt/riotprompt @grunnverk/git-tools
+npm install @grunnverk/ai-service openai @kjerneverk/riotprompt @grunnverk/git-tools
 ```
 
 ## 2. Set API Key

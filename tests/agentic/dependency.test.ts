@@ -13,7 +13,7 @@ vi.mock('../../src/agentic/executor', () => ({
 }));
 
 // Mock riotprompt
-vi.mock('@riotprompt/riotprompt', () => ({
+vi.mock('@kjerneverk/riotprompt', () => ({
     generateToolGuidance: vi.fn(() => 'Mocked tool guidance')
 }));
 
