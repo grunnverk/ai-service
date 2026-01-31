@@ -176,3 +176,33 @@ Before writing, ask yourself:
 7. **If this were a code review, what would you want to know about these changes?**
 
 Your commit message should answer these questions based on what you observe in the diff.
+
+---
+
+## 🔀 WHEN TO SUGGEST SPLITTING COMMITS
+
+If you see multiple distinct changes that would be clearer as separate commits, suggest splits using the SUGGESTED_SPLITS format. Consider splitting when:
+
+### Strong Indicators for Splitting (suggest splits when you see these):
+
+* **10+ files changed** - Large changesets often contain multiple logical changes
+* **Multiple modules/packages affected** - Changes in different packages (e.g., src/auth/ and src/api/) often represent separate concerns
+* **Mixed change types** - Configuration changes + feature implementation, or refactoring + bug fixes
+* **Unrelated functionality** - Changes that don't depend on each other and solve different problems
+* **Different time periods** - If temporal analysis shows files modified hours apart, they may be separate work sessions
+
+### When to Keep as One Commit:
+
+* **Tightly coupled changes** - When changes must be made together to maintain consistency
+* **Single feature implementation** - All changes work toward one cohesive goal
+* **Test + implementation** - Tests that directly verify the production code changes
+* **Atomic refactoring** - Renaming or restructuring that must happen together to avoid breaking the build
+
+### How to Suggest Splits:
+
+Use the SUGGESTED_SPLITS format with:
+1. **Clear rationale** - Explain WHY these files belong together (logical relationship, temporal clustering, or both)
+2. **Specific file lists** - List exactly which files go in each split
+3. **Descriptive messages** - Provide a commit message for each split that describes what changed
+
+**Default bias**: When in doubt, suggest splitting. It's better to have focused, reviewable commits than one large commit that mixes concerns.
