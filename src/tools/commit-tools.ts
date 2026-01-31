@@ -191,8 +191,11 @@ function createSearchCodebaseTool(): Tool {
             const { query, fileTypes, contextLines = 2 } = params;
             const workingDir = context?.workingDirectory || process.cwd();
 
+            // Escape double quotes in query to prevent shell parsing issues
+            const escapedQuery = query.replace(/"/g, '\\"');
+
             // Build command with proper git grep syntax: pattern comes BEFORE pathspec
-            let command = `git grep -n -C ${contextLines} "${query}"`;
+            let command = `git grep -n -C ${contextLines} "${escapedQuery}"`;
 
             if (fileTypes && fileTypes.length > 0) {
                 // Add glob patterns for each file type with proper quoting
