@@ -1,6 +1,6 @@
 {
   "name": "@grunnverk/ai-service",
-  "version": "1.5.6",
+  "version": "1.5.7-dev.0",
   "description": "AI-powered content generation for automation - OpenAI integration with structured prompts",
   "main": "dist/index.js",
   "type": "module",
