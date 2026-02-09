@@ -8,16 +8,23 @@
 export type ReasoningLevel = 'low' | 'medium' | 'high';
 
 /**
- * Configuration for AI operations
+ * Configuration for AI operations.
+ *
+ * Supports multiple providers: Anthropic (Claude) and OpenAI (GPT).
+ * Provider is auto-detected from the model name or available API keys.
+ * Default: Anthropic (claude-sonnet-4-20250514) when ANTHROPIC_API_KEY is set.
  */
 export interface AIConfig {
-  /** OpenAI API key */
+  /** Explicit API key (if not set, auto-detected from environment) */
   apiKey?: string;
 
-  /** Model to use (e.g., 'gpt-4o-mini', 'gpt-4o') */
+  /** Preferred provider: 'anthropic', 'openai', or 'auto' (default: 'auto') */
+  provider?: 'anthropic' | 'openai' | 'auto';
+
+  /** Model to use (e.g., 'claude-sonnet-4-20250514', 'gpt-4o-mini'). Auto-detected if not set. */
   model?: string;
 
-  /** Reasoning effort level */
+  /** Reasoning effort level (OpenAI o-series only) */
   reasoning?: ReasoningLevel;
 
   /** Command-specific configurations */

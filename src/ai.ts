@@ -1,8 +1,11 @@
 import { OpenAI } from 'openai';
 import type { ChatCompletionMessageParam } from 'openai/resources';
 import { safeJsonParse } from '@grunnverk/git-tools';
+import { createRequest } from '@kjerneverk/execution';
+import type { Message } from '@kjerneverk/execution';
 import fs from 'fs';
 import { getLogger } from './logger';
+import { resolveProvider, buildExecutionOptions } from './provider';
 import type { AIConfig, Transcription, StorageAdapter, Logger } from './types';
 
 export interface OpenAIOptions {
@@ -17,7 +20,7 @@ export interface OpenAIOptions {
     openaiMaxOutputTokens?: number;
     storage?: StorageAdapter;
     logger?: Logger;
-    tools?: any[]; // OpenAI tool definitions
+    tools?: any[]; // Tool definitions (OpenAI format)
     toolChoice?: 'auto' | 'none' | 'required' | { type: 'function'; function: { name: string } };
 }
 
@@ -57,15 +60,15 @@ export function getModelForCommand(config: AIConfig, commandName: string): strin
             break;
     }
 
-    // Return command-specific model if available, otherwise global model
-    return commandModel || config.model || 'gpt-4o-mini';
+    // Return command-specific model if available, otherwise global model, otherwise auto-detect
+    return commandModel || config.model || '';
 }
 
 /**
- * Get the appropriate OpenAI reasoning level based on command-specific configuration
- * Command-specific reasoning overrides the global reasoning setting
+ * Get the reasoning level based on command-specific configuration
+ * Only applicable for OpenAI o-series models
  */
-export function getOpenAIReasoningForCommand(config: AIConfig, commandName: string): 'low' | 'medium' | 'high' {
+export function getReasoningForCommand(config: AIConfig, commandName: string): 'low' | 'medium' | 'high' {
     let commandReasoning: 'low' | 'medium' | 'high' | undefined;
 
     switch (commandName) {
@@ -89,12 +92,22 @@ export function getOpenAIReasoningForCommand(config: AIConfig, commandName: stri
     return commandReasoning || config.reasoning || 'low';
 }
 
-export class OpenAIError extends Error {
+/**
+ * @deprecated Use getReasoningForCommand instead
+ */
+export const getOpenAIReasoningForCommand = getReasoningForCommand;
+
+export class LLMError extends Error {
     constructor(message: string, public readonly isTokenLimitError: boolean = false) {
         super(message);
-        this.name = 'OpenAIError';
+        this.name = 'LLMError';
     }
 }
+
+/**
+ * @deprecated Use LLMError instead
+ */
+export const OpenAIError = LLMError;
 
 // Check if an error is a token limit exceeded error
 export function isTokenLimitError(error: any): boolean {
@@ -105,14 +118,17 @@ export function isTokenLimitError(error: any): boolean {
            message.includes('context_length_exceeded') ||
            message.includes('token limit') ||
            message.includes('too many tokens') ||
-           message.includes('reduce the length');
+           message.includes('reduce the length') ||
+           // Anthropic-specific
+           message.includes('prompt is too long') ||
+           message.includes('too many input tokens');
 }
 
 // Check if an error is a rate limit error
 export function isRateLimitError(error: any): boolean {
     if (!error?.message && !error?.code && !error?.status) return false;
 
-    // Check for OpenAI specific rate limit indicators
+    // Check for common HTTP rate limit status
     if (error.status === 429 || error.code === 'rate_limit_exceeded') {
         return true;
     }
@@ -123,199 +139,360 @@ export function isRateLimitError(error: any): boolean {
         return message.includes('rate limit exceeded') ||
                message.includes('too many requests') ||
                message.includes('quota exceeded') ||
-               (message.includes('rate') && message.includes('limit'));
+               (message.includes('rate') && message.includes('limit')) ||
+               // Anthropic-specific
+               message.includes('overloaded');
     }
 
     return false;
 }
 
 /**
- * Create OpenAI completion with optional debug and retry support
+ * Convert ChatCompletionMessageParam to kjerneverk Message format
+ */
+function toExecutionMessages(messages: ChatCompletionMessageParam[]): Message[] {
+    return messages.map(msg => ({
+        role: msg.role as Message['role'],
+        content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+    }));
+}
+
+/**
+ * Create LLM completion using the best available provider.
+ *
+ * Delegates to kjerneverk execution providers:
+ * - Anthropic (claude-*) if ANTHROPIC_API_KEY is set
+ * - OpenAI (gpt-*, o-series) if OPENAI_API_KEY is set
+ * - Auto-detects provider from model name or available API keys
+ *
+ * For tool-calling (agentic) workflows, uses direct SDK calls until
+ * kjerneverk providers support tool definitions natively.
+ * See: mature-kjerneverk-ai plan for provider tool support.
+ *
+ * Function signature is preserved for backward compatibility.
  */
 export async function createCompletion(
     messages: ChatCompletionMessageParam[],
-    options: OpenAIOptions = { model: "gpt-4o-mini" }
+    options: OpenAIOptions = {}
 ): Promise<string | any> {
     const logger = options.logger || getLogger();
-    let openai: OpenAI | null = null;
 
     try {
-        const apiKey = process.env.OPENAI_API_KEY;
-        if (!apiKey) {
-            throw new OpenAIError('OPENAI_API_KEY environment variable is not set');
-        }
-
-        // Create the client which we'll close in the finally block.
-        const timeoutMs = parseInt(process.env.OPENAI_TIMEOUT_MS || '300000', 10); // Default to 5 minutes
-        if (isNaN(timeoutMs) || timeoutMs <= 0) {
-            throw new OpenAIError('Invalid OPENAI_TIMEOUT_MS value - must be a positive number');
-        }
-
-        // Support project-scoped API keys by including project ID if provided
-        const projectId = process.env.OPENAI_PROJECT_ID;
-        openai = new OpenAI({
-            apiKey: apiKey,
-            timeout: timeoutMs,
-            ...(projectId && { project: projectId }),
-        });
-
-        const modelToUse = options.model || "gpt-4o-mini";
+        // Resolve provider and model
+        const resolved = resolveProvider(options.model);
+        const modelToUse = resolved.model;
 
         // Calculate request size
         const requestSize = JSON.stringify(messages).length;
         const requestSizeKB = (requestSize / 1024).toFixed(2);
 
-        // Log model, reasoning level, and request size
+        // Log provider, model, and request size
         const reasoningInfo = options.openaiReasoning ? ` | Reasoning: ${options.openaiReasoning}` : '';
-        logger.info('🤖 Making request to OpenAI');
+        logger.info('🤖 Making request to %s', resolved.providerName);
         logger.info('   Model: %s%s', modelToUse, reasoningInfo);
         logger.info('   Request size: %s KB (%s bytes)', requestSizeKB, requestSize.toLocaleString());
 
-        logger.debug('Sending prompt to OpenAI: %j', messages);
+        logger.debug('Sending prompt to %s: %j', resolved.providerName, messages);
 
-        // Use openaiMaxOutputTokens if specified (highest priority), otherwise fall back to maxTokens, or default to 10000
-        const maxCompletionTokens = options.openaiMaxOutputTokens ?? options.maxTokens ?? 10000;
+        // Use openaiMaxOutputTokens if specified, otherwise fall back to maxTokens, or default
+        const maxTokens = options.openaiMaxOutputTokens ?? options.maxTokens ?? 10000;
 
         // Save request debug file if enabled
         if (options.debug && (options.debugRequestFile || options.debugFile) && options.storage) {
             const requestData = {
+                provider: resolved.providerName,
                 model: modelToUse,
                 messages,
-                max_completion_tokens: maxCompletionTokens,
+                max_tokens: maxTokens,
                 response_format: options.responseFormat,
                 reasoning_effort: options.openaiReasoning,
+                tools: options.tools ? `[${options.tools.length} tools]` : undefined,
             };
             const debugFile = options.debugRequestFile || options.debugFile;
             await options.storage.writeTemp(debugFile!, JSON.stringify(requestData, null, 2));
             logger.debug('Wrote request debug file to %s', debugFile);
         }
 
-        // Prepare the API call options
-        const apiOptions: any = {
-            model: modelToUse,
-            messages,
-            max_completion_tokens: maxCompletionTokens,
-            response_format: options.responseFormat,
-        };
-
-        // Add tools if provided
-        if (options.tools && options.tools.length > 0) {
-            apiOptions.tools = options.tools;
-            apiOptions.tool_choice = options.toolChoice || 'auto';
-        }
-
-        // Add reasoning parameter if specified and model supports it
-        if (options.openaiReasoning && (modelToUse.includes('gpt-5') || modelToUse.includes('o3'))) {
-            apiOptions.reasoning_effort = options.openaiReasoning;
-        }
-
-        // Add timeout wrapper to the OpenAI API call
+        // Start timing and progress indicator
         const startTime = Date.now();
-        const completionPromise = openai.chat.completions.create(apiOptions);
-
-        // Create timeout promise with proper cleanup to prevent memory leaks
-        let timeoutId: NodeJS.Timeout | null = null;
-        const timeoutPromise = new Promise<never>((_, reject) => {
-            const timeoutMs = parseInt(process.env.OPENAI_TIMEOUT_MS || '300000', 10); // Default to 5 minutes
-            const validTimeout = isNaN(timeoutMs) || timeoutMs <= 0 ? 300000 : timeoutMs;
-            timeoutId = setTimeout(() => reject(new OpenAIError(`OpenAI API call timed out after ${validTimeout/1000} seconds`)), validTimeout);
-        });
-
-        // Add progress indicator that updates every 5 seconds
         let progressIntervalId: NodeJS.Timeout | null = null;
         progressIntervalId = setInterval(() => {
             const elapsed = Math.round((Date.now() - startTime) / 1000);
             logger.info('   ⏳ Waiting for response... %ds', elapsed);
         }, 5000);
 
-        let completion;
-        try {
-            completion = await Promise.race([completionPromise, timeoutPromise]);
-        } finally {
-            // Clear the timeout to prevent memory leaks
-            if (timeoutId !== null) {
-                clearTimeout(timeoutId);
+        // Add timeout wrapper
+        const timeoutMs = parseInt(process.env.LLM_TIMEOUT_MS || process.env.OPENAI_TIMEOUT_MS || '300000', 10);
+        const validTimeout = isNaN(timeoutMs) || timeoutMs <= 0 ? 300000 : timeoutMs;
+
+        let providerResponse;
+
+        // Tool-calling path: uses direct SDK until kjerneverk providers support tools natively
+        if (options.tools && options.tools.length > 0) {
+            providerResponse = await executeWithTools(
+                messages, options, resolved, modelToUse, maxTokens, validTimeout, logger
+            );
+        } else {
+            // Standard path: delegate to kjerneverk provider
+            const request = createRequest(modelToUse);
+            for (const msg of toExecutionMessages(messages)) {
+                request.addMessage(msg);
             }
-            // Clear the progress interval
-            if (progressIntervalId !== null) {
-                clearInterval(progressIntervalId);
+            if (options.responseFormat) {
+                request.responseFormat = options.responseFormat;
+            }
+
+            const executionOptions = buildExecutionOptions(resolved, {
+                maxTokens,
+                timeout: validTimeout,
+            });
+
+            let timeoutId: NodeJS.Timeout | null = null;
+            const executionPromise = resolved.provider.execute(request, executionOptions);
+            const timeoutPromise = new Promise<never>((_, reject) => {
+                timeoutId = setTimeout(
+                    () => reject(new LLMError(`API call timed out after ${validTimeout / 1000} seconds`)),
+                    validTimeout
+                );
+            });
+
+            try {
+                const raw = await Promise.race([executionPromise, timeoutPromise]);
+                // Normalize to common shape
+                providerResponse = {
+                    content: raw.content,
+                    model: raw.model,
+                    usage: raw.usage ? {
+                        inputTokens: raw.usage.inputTokens,
+                        outputTokens: raw.usage.outputTokens,
+                    } : undefined,
+                    toolCalls: raw.toolCalls,
+                };
+            } finally {
+                if (timeoutId !== null) clearTimeout(timeoutId);
             }
         }
+
+        // Clear progress indicator
+        if (progressIntervalId !== null) clearInterval(progressIntervalId);
 
         const elapsedTime = Date.now() - startTime;
 
         // Save response debug file if enabled
         if (options.debug && (options.debugResponseFile || options.debugFile) && options.storage) {
             const debugFile = options.debugResponseFile || options.debugFile;
-            await options.storage.writeTemp(debugFile!, JSON.stringify(completion, null, 2));
+            await options.storage.writeTemp(debugFile!, JSON.stringify(providerResponse, null, 2));
             logger.debug('Wrote response debug file to %s', debugFile);
         }
-
-        const message = completion.choices[0]?.message;
-        if (!message) {
-            throw new OpenAIError('No response message received from OpenAI');
-        }
-
-        // If tools are being used, return the full message object (includes tool_calls)
-        if (options.tools && options.tools.length > 0) {
-            // Log elapsed time
-            const elapsedTimeFormatted = elapsedTime >= 1000
-                ? `${(elapsedTime / 1000).toFixed(1)}s`
-                : `${elapsedTime}ms`;
-            logger.info('   Time: %s', elapsedTimeFormatted);
-
-            // Log token usage if available
-            if (completion.usage) {
-                logger.info('   Token usage: %s prompt + %s completion = %s total',
-                    completion.usage.prompt_tokens?.toLocaleString() || '?',
-                    completion.usage.completion_tokens?.toLocaleString() || '?',
-                    completion.usage.total_tokens?.toLocaleString() || '?'
-                );
-            }
-
-            return message; // Return full message object for tool handling
-        }
-
-        // For non-tool calls, return content as string
-        const response = message.content?.trim();
-        if (!response) {
-            throw new OpenAIError('No response content received from OpenAI');
-        }
-
-        // Calculate and log response size
-        const responseSize = response.length;
-        const responseSizeKB = (responseSize / 1024).toFixed(2);
-        logger.info('   Response size: %s KB (%s bytes)', responseSizeKB, responseSize.toLocaleString());
 
         // Log elapsed time
         const elapsedTimeFormatted = elapsedTime >= 1000
             ? `${(elapsedTime / 1000).toFixed(1)}s`
             : `${elapsedTime}ms`;
-        logger.info('   Time: %s', elapsedTimeFormatted);
 
-        // Log token usage if available
-        if (completion.usage) {
-            logger.info('   Token usage: %s prompt + %s completion = %s total',
-                completion.usage.prompt_tokens?.toLocaleString() || '?',
-                completion.usage.completion_tokens?.toLocaleString() || '?',
-                completion.usage.total_tokens?.toLocaleString() || '?'
-            );
+        // If tools are being used, return in the format the AgenticExecutor expects
+        if (options.tools && options.tools.length > 0) {
+            logger.info('   Time: %s', elapsedTimeFormatted);
+            logUsage(logger, providerResponse.usage);
+
+            return {
+                role: 'assistant',
+                content: providerResponse.content || null,
+                tool_calls: providerResponse.toolCalls || undefined,
+            };
         }
 
-        logger.debug('Received response from OpenAI: %s...', response.substring(0, 30));
+        // For non-tool calls, return content as string
+        const response = providerResponse.content?.trim();
+        if (!response) {
+            throw new LLMError('No response content received from LLM provider');
+        }
+
+        // Log response metrics
+        const responseSize = response.length;
+        const responseSizeKB = (responseSize / 1024).toFixed(2);
+        logger.info('   Response size: %s KB (%s bytes)', responseSizeKB, responseSize.toLocaleString());
+        logger.info('   Time: %s', elapsedTimeFormatted);
+        logUsage(logger, providerResponse.usage);
+
+        logger.debug('Received response from %s: %s...', resolved.providerName, response.substring(0, 30));
         if (options.responseFormat) {
-            return safeJsonParse(response, 'OpenAI API response');
+            return safeJsonParse(response, 'LLM API response');
         } else {
             return response;
         }
 
     } catch (error: any) {
-        logger.error('Error calling OpenAI API: %s %s', error.message, error.stack);
+        logger.error('Error calling LLM API: %s %s', error.message, error.stack);
         const isTokenError = isTokenLimitError(error);
-        throw new OpenAIError(`Failed to create completion: ${error.message}`, isTokenError);
-    } finally {
-        // OpenAI client cleanup is handled automatically by the library
-        // No manual cleanup needed for newer versions
+        throw new LLMError(`Failed to create completion: ${error.message}`, isTokenError);
+    }
+}
+
+/**
+ * Log token usage in a provider-agnostic format
+ */
+function logUsage(logger: Logger, usage?: { inputTokens: number; outputTokens: number }): void {
+    if (usage) {
+        logger.info('   Token usage: %s input + %s output = %s total',
+            usage.inputTokens?.toLocaleString() || '?',
+            usage.outputTokens?.toLocaleString() || '?',
+            ((usage.inputTokens || 0) + (usage.outputTokens || 0)).toLocaleString()
+        );
+    }
+}
+
+/**
+ * Execute a completion with tool definitions using direct SDK calls.
+ *
+ * The kjerneverk execution providers don't yet support passing tool definitions
+ * in the Request object. Until they do (see mature-kjerneverk-ai plan), agentic
+ * tool-calling workflows use direct SDK calls routed through the resolved provider.
+ *
+ * This function handles both OpenAI and Anthropic tool call formats.
+ */
+async function executeWithTools(
+    messages: ChatCompletionMessageParam[],
+    options: OpenAIOptions,
+    resolved: import('./provider').ResolvedProvider,
+    model: string,
+    maxTokens: number,
+    timeoutMs: number,
+    logger: Logger
+): Promise<{ content: string; model: string; usage?: { inputTokens: number; outputTokens: number }; toolCalls?: any[] }> {
+
+    if (resolved.providerName === 'openai') {
+        // Direct OpenAI SDK call with tools
+        const client = new OpenAI({
+            apiKey: resolved.apiKey,
+            timeout: timeoutMs,
+        });
+
+        const apiOptions: any = {
+            model,
+            messages,
+            max_completion_tokens: maxTokens,
+            response_format: options.responseFormat,
+            tools: options.tools,
+            tool_choice: options.toolChoice || 'auto',
+        };
+
+        // Add reasoning parameter if applicable
+        if (options.openaiReasoning && (model.includes('gpt-5') || model.includes('o3'))) {
+            apiOptions.reasoning_effort = options.openaiReasoning;
+        }
+
+        const completion = await client.chat.completions.create(apiOptions);
+        const message = completion.choices[0]?.message;
+
+        return {
+            content: message?.content || '',
+            model: completion.model,
+            usage: completion.usage ? {
+                inputTokens: completion.usage.prompt_tokens,
+                outputTokens: completion.usage.completion_tokens,
+            } : undefined,
+            toolCalls: message?.tool_calls?.filter(tc => tc.type === 'function').map(tc => ({
+                id: tc.id,
+                type: 'function' as const,
+                function: {
+                    name: tc.function.name,
+                    arguments: tc.function.arguments,
+                },
+            })),
+        };
+
+    } else if (resolved.providerName === 'anthropic') {
+        // Direct Anthropic SDK call with tools
+        const Anthropic = (await import('@anthropic-ai/sdk')).default;
+        const client = new Anthropic({ apiKey: resolved.apiKey });
+
+        // Separate system prompt (Anthropic requires it separate)
+        let systemPrompt = '';
+        const anthropicMessages: any[] = [];
+
+        for (const msg of messages) {
+            if (msg.role === 'system' || (msg as any).role === 'developer') {
+                systemPrompt += (typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)) + '\n\n';
+            } else if (msg.role === 'tool') {
+                // Convert OpenAI tool result format to Anthropic format
+                anthropicMessages.push({
+                    role: 'user',
+                    content: [{
+                        type: 'tool_result',
+                        tool_use_id: (msg as any).tool_call_id,
+                        content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+                    }],
+                });
+            } else if (msg.role === 'assistant' && (msg as any).tool_calls) {
+                // Convert OpenAI assistant+tool_calls to Anthropic format
+                const content: any[] = [];
+                if (msg.content) {
+                    content.push({ type: 'text', text: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content) });
+                }
+                for (const tc of (msg as any).tool_calls) {
+                    content.push({
+                        type: 'tool_use',
+                        id: tc.id,
+                        name: tc.function.name,
+                        input: JSON.parse(tc.function.arguments),
+                    });
+                }
+                anthropicMessages.push({ role: 'assistant', content });
+            } else {
+                anthropicMessages.push({
+                    role: msg.role as 'user' | 'assistant',
+                    content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+                });
+            }
+        }
+
+        // Convert OpenAI tool format to Anthropic tool format
+        const anthropicTools = (options.tools || []).map((tool: any) => ({
+            name: tool.function.name,
+            description: tool.function.description,
+            input_schema: tool.function.parameters,
+        }));
+
+        const response = await client.messages.create({
+            model,
+            system: systemPrompt.trim() || undefined,
+            messages: anthropicMessages,
+            max_tokens: maxTokens,
+            tools: anthropicTools,
+        });
+
+        // Extract text content and tool calls from response
+        let textContent = '';
+        const toolCalls: any[] = [];
+
+        for (const block of response.content) {
+            if (block.type === 'text') {
+                textContent += block.text;
+            } else if (block.type === 'tool_use') {
+                toolCalls.push({
+                    id: block.id,
+                    type: 'function' as const,
+                    function: {
+                        name: block.name,
+                        arguments: JSON.stringify(block.input),
+                    },
+                });
+            }
+        }
+
+        return {
+            content: textContent,
+            model: response.model,
+            usage: {
+                inputTokens: response.usage.input_tokens,
+                outputTokens: response.usage.output_tokens,
+            },
+            toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+        };
+
+    } else {
+        throw new LLMError(`Tool calling is not supported for provider: ${resolved.providerName}`);
     }
 }
 
@@ -324,7 +501,7 @@ export async function createCompletion(
  */
 export async function createCompletionWithRetry(
     messages: ChatCompletionMessageParam[],
-    options: OpenAIOptions = { model: "gpt-4o-mini" },
+    options: OpenAIOptions = {},
     retryCallback?: (attempt: number) => Promise<ChatCompletionMessageParam[]>
 ): Promise<string | any> {
     const logger = options.logger || getLogger();
@@ -335,15 +512,13 @@ export async function createCompletionWithRetry(
             const messagesToSend = attempt === 1 ? messages : (retryCallback ? await retryCallback(attempt) : messages);
             return await createCompletion(messagesToSend, options);
         } catch (error: any) {
-            if (error instanceof OpenAIError && error.isTokenLimitError && attempt < maxRetries && retryCallback) {
+            if (error instanceof LLMError && error.isTokenLimitError && attempt < maxRetries && retryCallback) {
                 logger.warn('Token limit exceeded on attempt %d/%d, retrying with reduced content...', attempt, maxRetries);
-                // Add exponential backoff for token limit errors
                 const backoffMs = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
                 await new Promise(resolve => setTimeout(resolve, backoffMs));
                 continue;
             } else if (isRateLimitError(error) && attempt < maxRetries) {
-                // Handle rate limiting with exponential backoff
-                const backoffMs = Math.min(2000 * Math.pow(2, attempt - 1), 15000); // More reasonable backoff: 2s, 4s, 8s, max 15s
+                const backoffMs = Math.min(2000 * Math.pow(2, attempt - 1), 15000);
                 logger.warn(`Rate limit hit on attempt ${attempt}/${maxRetries}, waiting ${backoffMs}ms before retry...`);
                 await new Promise(resolve => setTimeout(resolve, backoffMs));
                 continue;
@@ -353,11 +528,12 @@ export async function createCompletionWithRetry(
     }
 
     // This should never be reached, but TypeScript requires it
-    throw new OpenAIError('Max retries exceeded');
+    throw new LLMError('Max retries exceeded');
 }
 
 /**
  * Transcribe audio file using OpenAI Whisper API
+ * NOTE: This remains OpenAI-specific. Will be moved to commands-audio in eliminate-ai-service plan.
  */
 export async function transcribeAudio(
     filePath: string,
@@ -372,7 +548,6 @@ export async function transcribeAudio(
     const closeAudioStream = () => {
         if (audioStream && !streamClosed) {
             try {
-                // Only call destroy if it exists and the stream isn't already destroyed
                 if (typeof audioStream.destroy === 'function' && !audioStream.destroyed) {
                     audioStream.destroy();
                 }
@@ -380,7 +555,7 @@ export async function transcribeAudio(
                 logger.debug('Audio stream closed successfully');
             } catch (streamErr) {
                 logger.debug('Failed to destroy audio read stream: %s', (streamErr as Error).message);
-                streamClosed = true; // Mark as closed even if destroy failed
+                streamClosed = true;
             }
         }
     };
@@ -388,10 +563,9 @@ export async function transcribeAudio(
     try {
         const apiKey = process.env.OPENAI_API_KEY;
         if (!apiKey) {
-            throw new OpenAIError('OPENAI_API_KEY environment variable is not set');
+            throw new LLMError('OPENAI_API_KEY environment variable is required for audio transcription (Whisper API)');
         }
 
-        // Support project-scoped API keys by including project ID if provided
         const projectId = process.env.OPENAI_PROJECT_ID;
         openai = new OpenAI({
             apiKey: apiKey,
@@ -400,11 +574,10 @@ export async function transcribeAudio(
 
         logger.debug('Transcribing audio file: %s', filePath);
 
-        // Save request debug file if enabled
         if (options.debug && (options.debugRequestFile || options.debugFile) && options.storage) {
             const requestData = {
                 model: options.model || "whisper-1",
-                file: filePath, // Can't serialize the stream, so just save the file path
+                file: filePath,
                 response_format: "json",
             };
             const debugFile = options.debugRequestFile || options.debugFile;
@@ -414,8 +587,6 @@ export async function transcribeAudio(
 
         audioStream = fs.createReadStream(filePath);
 
-        // Set up error handler for the stream to ensure cleanup on stream errors
-        // Only add handler if the stream has the 'on' method (real streams)
         if (audioStream && typeof audioStream.on === 'function') {
             audioStream.on('error', (streamError) => {
                 logger.error('Audio stream error: %s', streamError.message);
@@ -430,15 +601,12 @@ export async function transcribeAudio(
                 file: audioStream,
                 response_format: "json",
             });
-            // Close the stream immediately after successful API call to prevent race conditions
             closeAudioStream();
         } catch (apiError) {
-            // Close the stream immediately if the API call fails
             closeAudioStream();
             throw apiError;
         }
 
-        // Save response debug file if enabled
         if (options.debug && (options.debugResponseFile || options.debugFile) && options.storage) {
             const debugFile = options.debugResponseFile || options.debugFile;
             await options.storage.writeTemp(debugFile!, JSON.stringify(transcription, null, 2));
@@ -447,17 +615,15 @@ export async function transcribeAudio(
 
         const response = transcription;
         if (!response) {
-            throw new OpenAIError('No transcription received from OpenAI');
+            throw new LLMError('No transcription received from OpenAI');
         }
 
         logger.debug('Received transcription from OpenAI: %s', response);
 
-        // Archive the audio file and transcription if callback provided
         if (options.onArchive) {
             try {
                 await options.onArchive(filePath, response.text);
             } catch (archiveError: any) {
-                // Don't fail the transcription if archiving fails, just log the error
                 logger.warn('Failed to archive audio file: %s', archiveError.message);
             }
         }
@@ -466,12 +632,8 @@ export async function transcribeAudio(
 
     } catch (error: any) {
         logger.error('Error transcribing audio file: %s %s', error.message, error.stack);
-        throw new OpenAIError(`Failed to transcribe audio: ${error.message}`);
+        throw new LLMError(`Failed to transcribe audio: ${error.message}`);
     } finally {
-        // Ensure the audio stream is properly closed to release file handles
         closeAudioStream();
-        // OpenAI client cleanup is handled automatically by the library
-        // No manual cleanup needed for newer versions
     }
 }
-
