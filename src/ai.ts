@@ -358,7 +358,7 @@ async function executeWithTools(
     model: string,
     maxTokens: number,
     timeoutMs: number,
-    logger: Logger
+    _logger: Logger
 ): Promise<{ content: string; model: string; usage?: { inputTokens: number; outputTokens: number }; toolCalls?: any[] }> {
 
     if (resolved.providerName === 'openai') {
