@@ -5,7 +5,8 @@ import { createRequest } from '@kjerneverk/execution';
 import type { Message } from '@kjerneverk/execution';
 import fs from 'fs';
 import { getLogger } from './logger';
-import { resolveProvider, buildExecutionOptions } from './provider';
+import { resolveProvider, buildExecutionOptions, getDefaultModel } from './provider';
+import { getProxyUrl, createProxyFetch } from './proxy';
 import type { AIConfig, Transcription, StorageAdapter, Logger } from './types';
 
 export interface OpenAIOptions {
@@ -60,8 +61,8 @@ export function getModelForCommand(config: AIConfig, commandName: string): strin
             break;
     }
 
-    // Return command-specific model if available, otherwise global model, otherwise auto-detect
-    return commandModel || config.model || '';
+    // Return command-specific model if available, otherwise global model, otherwise auto-detect default
+    return commandModel || config.model || getDefaultModel();
 }
 
 /**
@@ -363,10 +364,15 @@ async function executeWithTools(
 
     if (resolved.providerName === 'openai') {
         // Direct OpenAI SDK call with tools
-        const client = new OpenAI({
+        const openaiOptions: ConstructorParameters<typeof OpenAI>[0] = {
             apiKey: resolved.apiKey,
             timeout: timeoutMs,
-        });
+        };
+        const proxyUrl = getProxyUrl();
+        if (proxyUrl) {
+            openaiOptions.fetch = createProxyFetch(proxyUrl);
+        }
+        const client = new OpenAI(openaiOptions);
 
         const apiOptions: any = {
             model,
@@ -405,7 +411,12 @@ async function executeWithTools(
     } else if (resolved.providerName === 'anthropic') {
         // Direct Anthropic SDK call with tools
         const Anthropic = (await import('@anthropic-ai/sdk')).default;
-        const client = new Anthropic({ apiKey: resolved.apiKey });
+        const anthropicOptions: ConstructorParameters<typeof Anthropic>[0] = { apiKey: resolved.apiKey };
+        const proxyUrl = getProxyUrl();
+        if (proxyUrl) {
+            anthropicOptions.fetch = createProxyFetch(proxyUrl);
+        }
+        const client = new Anthropic(anthropicOptions);
 
         // Separate system prompt (Anthropic requires it separate)
         let systemPrompt = '';
@@ -567,10 +578,15 @@ export async function transcribeAudio(
         }
 
         const projectId = process.env.OPENAI_PROJECT_ID;
-        openai = new OpenAI({
+        const openaiOptions: ConstructorParameters<typeof OpenAI>[0] = {
             apiKey: apiKey,
             ...(projectId && { project: projectId }),
-        });
+        };
+        const proxyUrl = getProxyUrl();
+        if (proxyUrl) {
+            openaiOptions.fetch = createProxyFetch(proxyUrl);
+        }
+        openai = new OpenAI(openaiOptions);
 
         logger.debug('Transcribing audio file: %s', filePath);
 

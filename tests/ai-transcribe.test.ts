@@ -63,7 +63,7 @@ describe('transcribeAudio', () => {
 
         await expect(
             transcribeAudio('/path/to/audio.mp3')
-        ).rejects.toThrow('OPENAI_API_KEY environment variable is not set');
+        ).rejects.toThrow('OPENAI_API_KEY environment variable is required');
     });
 
     it('should use specified model', async () => {

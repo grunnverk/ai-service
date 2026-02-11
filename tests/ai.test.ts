@@ -8,6 +8,12 @@ import {
 } from '../src/ai';
 
 describe('AI Configuration Functions', () => {
+    beforeEach(() => {
+        // Set OPENAI_API_KEY by default so getDefaultModel returns gpt-4o-mini
+        process.env.OPENAI_API_KEY = 'test-key';
+        delete process.env.ANTHROPIC_API_KEY;
+    });
+
     describe('getModelForCommand', () => {
         it('should return command-specific model when available', () => {
             const config: AIConfig = {

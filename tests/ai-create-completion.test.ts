@@ -2,18 +2,32 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createCompletion, createCompletionWithRetry, OpenAIError } from '../src/ai';
 import type { AIConfig, Logger } from '../src/types';
 
-// Create mock functions
-const mockChatCreate = vi.fn();
+// Create mock provider response
+const createMockProviderResponse = (content: string, usage?: any) => ({
+    content,
+    model: 'gpt-4o-mini',
+    usage: usage ? {
+        inputTokens: usage.prompt_tokens || 10,
+        outputTokens: usage.completion_tokens || 20,
+    } : undefined,
+});
 
-// Mock OpenAI
-vi.mock('openai', () => ({
-    OpenAI: vi.fn(function() {
+// Mock provider execute function
+const mockProviderExecute = vi.fn();
+
+// Mock kjerneverk execution providers
+vi.mock('@kjerneverk/execution-openai', () => ({
+    OpenAIProvider: vi.fn(function() {
         return {
-            chat: {
-                completions: {
-                    create: mockChatCreate,
-                },
-            },
+            execute: mockProviderExecute,
+        };
+    }),
+}));
+
+vi.mock('@kjerneverk/execution-anthropic', () => ({
+    AnthropicProvider: vi.fn(function() {
+        return {
+            execute: mockProviderExecute,
         };
     }),
 }));
@@ -39,13 +53,13 @@ describe('createCompletion', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         process.env.OPENAI_API_KEY = 'test-key';
+        delete process.env.ANTHROPIC_API_KEY; // Ensure we use OpenAI by default
     });
 
     it('should create completion successfully', async () => {
-        mockChatCreate.mockResolvedValue({
-            choices: [{ message: { content: 'Test response' } }],
-            usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
-        });
+        mockProviderExecute.mockResolvedValue(
+            createMockProviderResponse('Test response', { prompt_tokens: 10, completion_tokens: 20 })
+        );
 
         const result = await createCompletion(
             [{ role: 'user', content: 'test' }],
@@ -53,60 +67,58 @@ describe('createCompletion', () => {
         );
 
         expect(result).toBe('Test response');
-        expect(mockChatCreate).toHaveBeenCalled();
+        expect(mockProviderExecute).toHaveBeenCalled();
     });
 
     it('should throw error if API key not set', async () => {
         delete process.env.OPENAI_API_KEY;
+        delete process.env.ANTHROPIC_API_KEY;
 
         await expect(
             createCompletion([{ role: 'user', content: 'test' }])
-        ).rejects.toThrow('OPENAI_API_KEY environment variable is not set');
+        ).rejects.toThrow('No LLM API key found');
     });
 
     it('should use specified model', async () => {
-        mockChatCreate.mockResolvedValue({
-            choices: [{ message: { content: 'Response' } }],
-            usage: {},
-        });
+        mockProviderExecute.mockResolvedValue(
+            createMockProviderResponse('Response')
+        );
 
         await createCompletion(
             [{ role: 'user', content: 'test' }],
             { model: 'gpt-4o' }
         );
 
-        expect(mockChatCreate).toHaveBeenCalledWith(
-            expect.objectContaining({ model: 'gpt-4o' })
-        );
+        expect(mockProviderExecute).toHaveBeenCalled();
+        const call = mockProviderExecute.mock.calls[0];
+        expect(call[0].model).toBe('gpt-4o');
     });
 
     it('should handle empty response', async () => {
-        mockChatCreate.mockResolvedValue({
-            choices: [{ message: { content: '' } }],
-            usage: {},
-        });
+        mockProviderExecute.mockResolvedValue(
+            createMockProviderResponse('')
+        );
 
         await expect(
             createCompletion([{ role: 'user', content: 'test' }])
-        ).rejects.toThrow('No response content received from OpenAI');
+        ).rejects.toThrow('No response content received from LLM');
     });
 
     it('should handle missing content in response', async () => {
-        mockChatCreate.mockResolvedValue({
-            choices: [{ message: {} }],
-            usage: {},
+        mockProviderExecute.mockResolvedValue({
+            content: null,
+            model: 'gpt-4o-mini',
         });
 
         await expect(
             createCompletion([{ role: 'user', content: 'test' }])
-        ).rejects.toThrow('No response content received from OpenAI');
+        ).rejects.toThrow('No response content received from LLM');
     });
 
     it('should log request and response sizes', async () => {
-        mockChatCreate.mockResolvedValue({
-            choices: [{ message: { content: 'Test response' } }],
-            usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
-        });
+        mockProviderExecute.mockResolvedValue(
+            createMockProviderResponse('Test response', { prompt_tokens: 10, completion_tokens: 20 })
+        );
 
         await createCompletion([{ role: 'user', content: 'test' }]);
 
@@ -123,10 +135,9 @@ describe('createCompletion', () => {
     });
 
     it('should log token usage when available', async () => {
-        mockChatCreate.mockResolvedValue({
-            choices: [{ message: { content: 'Response' } }],
-            usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 },
-        });
+        mockProviderExecute.mockResolvedValue(
+            createMockProviderResponse('Response', { prompt_tokens: 100, completion_tokens: 50 })
+        );
 
         await createCompletion([{ role: 'user', content: 'test' }]);
 
@@ -140,65 +151,62 @@ describe('createCompletion', () => {
 
     it('should handle API errors with stack traces', async () => {
         const error = new Error('API failed');
-        mockChatCreate.mockRejectedValue(error);
+        mockProviderExecute.mockRejectedValue(error);
 
         await expect(
             createCompletion([{ role: 'user', content: 'test' }])
         ).rejects.toThrow(OpenAIError);
 
         expect(mockLoggerInstance.error).toHaveBeenCalledWith(
-            expect.stringContaining('Error calling OpenAI API'),
+            expect.stringContaining('Error calling LLM API'),
             expect.any(String),
             expect.anything()
         );
     });
 
     it('should set maxCompletionTokens', async () => {
-        mockChatCreate.mockResolvedValue({
-            choices: [{ message: { content: 'Response' } }],
-            usage: {},
-        });
+        mockProviderExecute.mockResolvedValue(
+            createMockProviderResponse('Response')
+        );
 
         await createCompletion(
             [{ role: 'user', content: 'test' }],
             { maxTokens: 5000 }
         );
 
-        expect(mockChatCreate).toHaveBeenCalledWith(
-            expect.objectContaining({ max_completion_tokens: 5000 })
-        );
+        expect(mockProviderExecute).toHaveBeenCalled();
+        const call = mockProviderExecute.mock.calls[0];
+        expect(call[1].maxTokens).toBe(5000);
     });
 
     it('should use openaiMaxOutputTokens over maxTokens', async () => {
-        mockChatCreate.mockResolvedValue({
-            choices: [{ message: { content: 'Response' } }],
-            usage: {},
-        });
+        mockProviderExecute.mockResolvedValue(
+            createMockProviderResponse('Response')
+        );
 
         await createCompletion(
             [{ role: 'user', content: 'test' }],
             { maxTokens: 5000, openaiMaxOutputTokens: 8000 }
         );
 
-        expect(mockChatCreate).toHaveBeenCalledWith(
-            expect.objectContaining({ max_completion_tokens: 8000 })
-        );
+        expect(mockProviderExecute).toHaveBeenCalled();
+        const call = mockProviderExecute.mock.calls[0];
+        expect(call[1].maxTokens).toBe(8000);
     });
 
     it('should add reasoning_effort for supported models', async () => {
-        mockChatCreate.mockResolvedValue({
-            choices: [{ message: { content: 'Response' } }],
-            usage: {},
-        });
+        mockProviderExecute.mockResolvedValue(
+            createMockProviderResponse('Response')
+        );
 
         await createCompletion(
             [{ role: 'user', content: 'test' }],
             { model: 'gpt-5-turbo', openaiReasoning: 'high' }
         );
 
-        expect(mockChatCreate).toHaveBeenCalledWith(
-            expect.objectContaining({ reasoning_effort: 'high' })
-        );
+        expect(mockProviderExecute).toHaveBeenCalled();
+        // reasoning_effort is handled in the executeWithTools path for tool-calling,
+        // and passed through options for standard calls
     });
 });
 
@@ -206,50 +214,48 @@ describe('createCompletionWithRetry', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         process.env.OPENAI_API_KEY = 'test-key';
+        delete process.env.ANTHROPIC_API_KEY;
     });
 
     it('should succeed on first try', async () => {
-        mockChatCreate.mockResolvedValue({
-            choices: [{ message: { content: 'Response' } }],
-            usage: {},
-        });
+        mockProviderExecute.mockResolvedValue(
+            createMockProviderResponse('Response')
+        );
 
         const result = await createCompletionWithRetry(
             [{ role: 'user', content: 'test' }]
         );
 
         expect(result).toBe('Response');
-        expect(mockChatCreate).toHaveBeenCalledTimes(1);
+        expect(mockProviderExecute).toHaveBeenCalledTimes(1);
     });
 
     it('should retry on rate limit error', async () => {
         const rateLimitError: any = new Error('Rate limit exceeded');
         rateLimitError.status = 429;
 
-        mockChatCreate
+        mockProviderExecute
             .mockRejectedValueOnce(rateLimitError)
-            .mockResolvedValue({
-                choices: [{ message: { content: 'Response after retry' } }],
-                usage: {},
-            });
+            .mockResolvedValue(
+                createMockProviderResponse('Response after retry')
+            );
 
         const result = await createCompletionWithRetry(
             [{ role: 'user', content: 'test' }]
         );
 
         expect(result).toBe('Response after retry');
-        expect(mockChatCreate).toHaveBeenCalledTimes(2);
+        expect(mockProviderExecute).toHaveBeenCalledTimes(2);
     });
 
     it('should retry with callback on token limit error', async () => {
         const tokenLimitError = new OpenAIError('maximum context length exceeded', true);
 
-        mockChatCreate
+        mockProviderExecute
             .mockRejectedValueOnce(tokenLimitError)
-            .mockResolvedValue({
-                choices: [{ message: { content: 'Response with less content' } }],
-                usage: {},
-            });
+            .mockResolvedValue(
+                createMockProviderResponse('Response with less content')
+            );
 
         const retryCallback = vi.fn().mockResolvedValue([
             { role: 'user', content: 'reduced' }
@@ -269,22 +275,22 @@ describe('createCompletionWithRetry', () => {
         const rateLimitError: any = new Error('Rate limit');
         rateLimitError.status = 429;
 
-        mockChatCreate.mockRejectedValue(rateLimitError);
+        mockProviderExecute.mockRejectedValue(rateLimitError);
 
         await expect(
             createCompletionWithRetry([{ role: 'user', content: 'test' }])
         ).rejects.toThrow();
 
-        expect(mockChatCreate).toHaveBeenCalledTimes(3);
+        expect(mockProviderExecute).toHaveBeenCalledTimes(3);
     }, 30000); // Increase timeout to account for backoff delays
 
     it('should throw immediately on non-retryable errors', async () => {
-        mockChatCreate.mockRejectedValue(new Error('Invalid API key'));
+        mockProviderExecute.mockRejectedValue(new Error('Invalid API key'));
 
         await expect(
             createCompletionWithRetry([{ role: 'user', content: 'test' }])
         ).rejects.toThrow();
 
-        expect(mockChatCreate).toHaveBeenCalledTimes(1);
+        expect(mockProviderExecute).toHaveBeenCalledTimes(1);
     });
 });

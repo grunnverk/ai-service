@@ -50,6 +50,7 @@ export default defineConfig({
         },
         rollupOptions: {
             external: [
+                'undici',
                 'openai',
                 '@anthropic-ai/sdk',
                 '@google/generative-ai',

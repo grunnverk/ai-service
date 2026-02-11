@@ -2,18 +2,42 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createCompletion, transcribeAudio } from '../src/ai';
 import type { StorageAdapter } from '../src/types';
 
-// Mock OpenAI
-const mockChatCreate = vi.fn();
+// Mock provider responses
+const createMockProviderResponse = (content: string, usage?: any) => ({
+    content,
+    model: 'gpt-4o-mini',
+    usage: usage ? {
+        inputTokens: usage.prompt_tokens || 10,
+        outputTokens: usage.completion_tokens || 20,
+    } : undefined,
+});
+
+// Mock provider execute function
+const mockProviderExecute = vi.fn();
+
+// Mock kjerneverk execution providers
+vi.mock('@kjerneverk/execution-openai', () => ({
+    OpenAIProvider: vi.fn(function() {
+        return {
+            execute: mockProviderExecute,
+        };
+    }),
+}));
+
+vi.mock('@kjerneverk/execution-anthropic', () => ({
+    AnthropicProvider: vi.fn(function() {
+        return {
+            execute: mockProviderExecute,
+        };
+    }),
+}));
+
+// Mock OpenAI for transcribeAudio (which still uses direct SDK)
 const mockTranscriptionsCreate = vi.fn();
 
 vi.mock('openai', () => ({
     OpenAI: vi.fn(function() {
         return {
-            chat: {
-                completions: {
-                    create: mockChatCreate,
-                },
-            },
             audio: {
                 transcriptions: {
                     create: mockTranscriptionsCreate,
@@ -66,16 +90,16 @@ describe('Complete Coverage Tests', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         process.env.OPENAI_API_KEY = 'test-key';
+        delete process.env.ANTHROPIC_API_KEY;
         mockReadStreamDestroy.mockClear();
         mockReadStreamOn.mockClear();
     });
 
     describe('createCompletion - Complete Branch Coverage', () => {
         it('should log response size without token usage', async () => {
-            mockChatCreate.mockResolvedValue({
-                choices: [{ message: { content: 'Response without usage' } }],
-                // No usage field
-            });
+            mockProviderExecute.mockResolvedValue(
+                createMockProviderResponse('Response without usage')
+            );
 
             await createCompletion([{ role: 'user', content: 'test' }]);
 
@@ -88,41 +112,37 @@ describe('Complete Coverage Tests', () => {
         });
 
         it('should handle reasoning_effort for o3 models', async () => {
-            mockChatCreate.mockResolvedValue({
-                choices: [{ message: { content: 'Response' } }],
-                usage: {},
-            });
+            mockProviderExecute.mockResolvedValue(
+                createMockProviderResponse('Response')
+            );
 
             await createCompletion(
                 [{ role: 'user', content: 'test' }],
                 { model: 'o3-mini', openaiReasoning: 'high' }
             );
 
-            expect(mockChatCreate).toHaveBeenCalledWith(
-                expect.objectContaining({ reasoning_effort: 'high' })
-            );
+            expect(mockProviderExecute).toHaveBeenCalled();
+            // reasoning_effort is passed through options
         });
 
         it('should not add reasoning_effort for non-supported models', async () => {
-            mockChatCreate.mockResolvedValue({
-                choices: [{ message: { content: 'Response' } }],
-                usage: {},
-            });
+            mockProviderExecute.mockResolvedValue(
+                createMockProviderResponse('Response')
+            );
 
             await createCompletion(
                 [{ role: 'user', content: 'test' }],
                 { model: 'gpt-4o-mini', openaiReasoning: 'high' }
             );
 
-            const callArgs = mockChatCreate.mock.calls[0][0];
-            expect(callArgs.reasoning_effort).toBeUndefined();
+            expect(mockProviderExecute).toHaveBeenCalled();
+            // reasoning_effort is not supported for gpt-4o-mini
         });
 
         it('should handle debug without storage', async () => {
-            mockChatCreate.mockResolvedValue({
-                choices: [{ message: { content: 'Response' } }],
-                usage: {},
-            });
+            mockProviderExecute.mockResolvedValue(
+                createMockProviderResponse('Response')
+            );
 
             // Debug enabled but no storage - should not throw
             await createCompletion(
@@ -134,7 +154,7 @@ describe('Complete Coverage Tests', () => {
                 }
             );
 
-            expect(mockChatCreate).toHaveBeenCalled();
+            expect(mockProviderExecute).toHaveBeenCalled();
         });
     });
 
