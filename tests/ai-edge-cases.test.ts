@@ -2,18 +2,42 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createCompletion, transcribeAudio } from '../src/ai';
 import type { StorageAdapter } from '../src/types';
 
-// Mock OpenAI
-const mockChatCreate = vi.fn();
+// Mock provider responses
+const createMockProviderResponse = (content: string, usage?: any) => ({
+    content,
+    model: 'gpt-4o-mini',
+    usage: usage ? {
+        inputTokens: usage.prompt_tokens || 10,
+        outputTokens: usage.completion_tokens || 20,
+    } : undefined,
+});
+
+// Mock provider execute function
+const mockProviderExecute = vi.fn();
+
+// Mock kjerneverk execution providers
+vi.mock('@kjerneverk/execution-openai', () => ({
+    OpenAIProvider: vi.fn(function() {
+        return {
+            execute: mockProviderExecute,
+        };
+    }),
+}));
+
+vi.mock('@kjerneverk/execution-anthropic', () => ({
+    AnthropicProvider: vi.fn(function() {
+        return {
+            execute: mockProviderExecute,
+        };
+    }),
+}));
+
+// Mock OpenAI for transcribeAudio
 const mockTranscriptionsCreate = vi.fn();
 
 vi.mock('openai', () => ({
     OpenAI: vi.fn(function() {
         return {
-            chat: {
-                completions: {
-                    create: mockChatCreate,
-                },
-            },
             audio: {
                 transcriptions: {
                     create: mockTranscriptionsCreate,
@@ -60,6 +84,7 @@ describe('AI Edge Cases', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         process.env.OPENAI_API_KEY = 'test-key';
+        delete process.env.ANTHROPIC_API_KEY;
         mockReadStreamDestroy.mockClear();
         mockReadStreamOn.mockClear();
     });
@@ -73,10 +98,9 @@ describe('AI Edge Cases', () => {
                 readFile: vi.fn(),
             };
 
-            mockChatCreate.mockResolvedValue({
-                choices: [{ message: { content: 'Response' } }],
-                usage: {},
-            });
+            mockProviderExecute.mockResolvedValue(
+                createMockProviderResponse('Response')
+            );
 
             await createCompletion(
                 [{ role: 'user', content: 'test' }],
@@ -101,10 +125,9 @@ describe('AI Edge Cases', () => {
                 readFile: vi.fn(),
             };
 
-            mockChatCreate.mockResolvedValue({
-                choices: [{ message: { content: 'Response' } }],
-                usage: {},
-            });
+            mockProviderExecute.mockResolvedValue(
+                createMockProviderResponse('Response')
+            );
 
             await createCompletion(
                 [{ role: 'user', content: 'test' }],
@@ -117,7 +140,7 @@ describe('AI Edge Cases', () => {
 
             expect(mockStorage.writeTemp).toHaveBeenCalledWith(
                 'response.json',
-                expect.stringContaining('"choices"')
+                expect.stringContaining('"content"')
             );
         });
 
@@ -129,10 +152,9 @@ describe('AI Edge Cases', () => {
                 readFile: vi.fn(),
             };
 
-            mockChatCreate.mockResolvedValue({
-                choices: [{ message: { content: 'Response' } }],
-                usage: {},
-            });
+            mockProviderExecute.mockResolvedValue(
+                createMockProviderResponse('Response')
+            );
 
             await createCompletion(
                 [{ role: 'user', content: 'test' }],

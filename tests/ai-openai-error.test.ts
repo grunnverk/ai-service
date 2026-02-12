@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { OpenAIError } from '../src/ai';
+import { OpenAIError, LLMError } from '../src/ai';
 
-describe('OpenAIError', () => {
+describe('OpenAIError (deprecated alias for LLMError)', () => {
     it('should create error with message', () => {
         const error = new OpenAIError('Test error');
 
         expect(error).toBeInstanceOf(Error);
         expect(error.message).toBe('Test error');
-        expect(error.name).toBe('OpenAIError');
+        expect(error.name).toBe('LLMError'); // Changed to LLMError
         expect(error.isTokenLimitError).toBe(false);
     });
 
@@ -22,6 +22,7 @@ describe('OpenAIError', () => {
         const error = new OpenAIError('Test');
 
         expect(error instanceof OpenAIError).toBe(true);
+        expect(error instanceof LLMError).toBe(true);
         expect(error instanceof Error).toBe(true);
     });
 
