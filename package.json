@@ -52,9 +52,10 @@
     "@grunnverk/git-tools": "^1.5.15",
     "@google/generative-ai": "^0.24.1",
     "@kjerneverk/execution": "^1.0.5",
-    "@kjerneverk/execution-anthropic": "^1.0.5",
-    "@kjerneverk/execution-openai": "^1.0.6",
-    "@kjerneverk/riotprompt": "^1.0.6",
+    "@kjerneverk/execution-anthropic": "^1.0.6",
+    "@kjerneverk/execution-gemini": "^1.0.6",
+    "@kjerneverk/execution-openai": "^1.0.7",
+    "@kjerneverk/riotprompt": "^1.0.9",
     "openai": "^6.3.0",
     "semver": "^7.7.2"
   },
