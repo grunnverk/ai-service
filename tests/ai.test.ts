@@ -5,6 +5,7 @@ import {
     getOpenAIReasoningForCommand,
     isTokenLimitError,
     isRateLimitError,
+    isConnectionError,
 } from '../src/ai';
 
 describe('AI Configuration Functions', () => {
@@ -139,6 +140,31 @@ describe('AI Configuration Functions', () => {
             expect(isRateLimitError({ message: 'Network error' })).toBe(false);
             expect(isRateLimitError({})).toBe(false);
             expect(isRateLimitError(null)).toBe(false);
+        });
+    });
+
+    describe('isConnectionError', () => {
+        it('should identify connection errors by error code', () => {
+            expect(isConnectionError({ code: 'ECONNRESET' })).toBe(true);
+            expect(isConnectionError({ code: 'ECONNREFUSED' })).toBe(true);
+            expect(isConnectionError({ code: 'ETIMEDOUT' })).toBe(true);
+            expect(isConnectionError({ code: 'ENOTFOUND' })).toBe(true);
+            expect(isConnectionError({ code: 'ENETUNREACH' })).toBe(true);
+        });
+
+        it('should identify connection errors by message content', () => {
+            expect(isConnectionError({ message: 'Connection error' })).toBe(true);
+            expect(isConnectionError({ message: 'Failed to create completion: Connection error.' })).toBe(true);
+            expect(isConnectionError({ message: 'connection reset' })).toBe(true);
+            expect(isConnectionError({ message: 'fetch failed' })).toBe(true);
+            expect(isConnectionError({ message: 'socket hang up' })).toBe(true);
+        });
+
+        it('should return false for non-connection errors', () => {
+            expect(isConnectionError({ message: 'Rate limit exceeded' })).toBe(false);
+            expect(isConnectionError({ message: 'Token limit exceeded' })).toBe(false);
+            expect(isConnectionError({})).toBe(false);
+            expect(isConnectionError(null)).toBe(false);
         });
     });
 });

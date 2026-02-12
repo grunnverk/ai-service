@@ -248,6 +248,23 @@ describe('createCompletionWithRetry', () => {
         expect(mockProviderExecute).toHaveBeenCalledTimes(2);
     });
 
+    it('should retry on connection error', async () => {
+        const connectionError = new Error('Connection error');
+
+        mockProviderExecute
+            .mockRejectedValueOnce(connectionError)
+            .mockResolvedValue(
+                createMockProviderResponse('Response after connection retry')
+            );
+
+        const result = await createCompletionWithRetry(
+            [{ role: 'user', content: 'test' }]
+        );
+
+        expect(result).toBe('Response after connection retry');
+        expect(mockProviderExecute).toHaveBeenCalledTimes(2);
+    }, 15000);
+
     it('should retry with callback on token limit error', async () => {
         const tokenLimitError = new OpenAIError('maximum context length exceeded', true);
 

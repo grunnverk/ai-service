@@ -148,6 +148,31 @@ export function isRateLimitError(error: any): boolean {
     return false;
 }
 
+// Check if an error is a transient connection/network error worth retrying
+export function isConnectionError(error: any): boolean {
+    if (!error?.message && !error?.code) return false;
+
+    // Node/undici/fetch network error codes
+    const codes = ['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'ENOTFOUND', 'ENETUNREACH', 'EAI_AGAIN'];
+    if (error.code && codes.includes(error.code)) {
+        return true;
+    }
+
+    if (error.message) {
+        const message = error.message.toLowerCase();
+        return message.includes('connection error') ||
+               message.includes('connection reset') ||
+               message.includes('fetch failed') ||
+               message.includes('network') ||
+               message.includes('socket hang up') ||
+               message.includes('econnreset') ||
+               message.includes('econnrefused') ||
+               message.includes('etimedout');
+    }
+
+    return false;
+}
+
 /**
  * Convert ChatCompletionMessageParam to kjerneverk Message format
  */
@@ -531,6 +556,11 @@ export async function createCompletionWithRetry(
             } else if (isRateLimitError(error) && attempt < maxRetries) {
                 const backoffMs = Math.min(2000 * Math.pow(2, attempt - 1), 15000);
                 logger.warn(`Rate limit hit on attempt ${attempt}/${maxRetries}, waiting ${backoffMs}ms before retry...`);
+                await new Promise(resolve => setTimeout(resolve, backoffMs));
+                continue;
+            } else if (isConnectionError(error) && attempt < maxRetries) {
+                const backoffMs = Math.min(2000 * Math.pow(2, attempt - 1), 15000);
+                logger.warn(`Connection error on attempt ${attempt}/${maxRetries}, waiting ${backoffMs}ms before retry: %s`, error.message);
                 await new Promise(resolve => setTimeout(resolve, backoffMs));
                 continue;
             }
