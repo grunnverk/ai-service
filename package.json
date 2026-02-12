@@ -49,12 +49,12 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
     "undici": "^7.20.0",
-    "@grunnverk/git-tools": "^1.5.15",
+    "@grunnverk/git-tools": "^1.5.16",
     "@google/generative-ai": "^0.24.1",
-    "@kjerneverk/execution": "^1.0.5",
-    "@kjerneverk/execution-anthropic": "^1.0.6",
-    "@kjerneverk/execution-gemini": "^1.0.6",
-    "@kjerneverk/execution-openai": "^1.0.7",
+    "@kjerneverk/execution": "^1.0.6",
+    "@kjerneverk/execution-anthropic": "^1.0.8",
+    "@kjerneverk/execution-gemini": "^1.0.7",
+    "@kjerneverk/execution-openai": "^1.0.8",
     "@kjerneverk/riotprompt": "^1.0.9",
     "openai": "^6.3.0",
     "semver": "^7.7.2"
