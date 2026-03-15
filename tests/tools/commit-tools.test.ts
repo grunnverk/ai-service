@@ -65,6 +65,23 @@ describe('Commit Tools', () => {
             expect(result).toBe('1: line 1\n2: line 2\n3: line 3');
         });
 
+        it('should truncate oversized file content for token safety', async () => {
+            const tools = createCommitTools();
+            const getFileContentTool = tools.find(t => t.name === 'get_file_content')!;
+
+            const mockContent = `${'a'.repeat(9000)}\n${'b'.repeat(9000)}`;
+            vi.mocked(mockStorage.readFile).mockResolvedValue(mockContent);
+
+            const result = await getFileContentTool.execute(
+                { filePath: 'src/huge.ts' },
+                { storage: mockStorage, workingDirectory: '/test', logger: mockLogger }
+            );
+
+            expect(result).toContain('truncated for token safety');
+            expect(result).toContain('MIDDLE OMITTED');
+            expect(result).toContain('src/huge.ts');
+        });
+
         it('should throw error when storage is not available', async () => {
             const tools = createCommitTools();
             const getFileContentTool = tools.find(t => t.name === 'get_file_content')!;
@@ -338,6 +355,23 @@ describe('Commit Tools', () => {
             // Should not go below line 0 or beyond file length
             expect(result).toContain('1: line 1');
             expect(result).toContain('3: line 3');
+        });
+
+        it('should truncate oversized analyzed sections for token safety', async () => {
+            const tools = createCommitTools();
+            const analyzeTool = tools.find(t => t.name === 'analyze_diff_section')!;
+
+            const mockContent = Array.from({ length: 5000 }, (_, idx) => `line ${idx + 1} ${'x'.repeat(20)}`).join('\n');
+            vi.mocked(mockStorage.readFile).mockResolvedValue(mockContent);
+
+            const result = await analyzeTool.execute(
+                { filePath: 'src/big.ts', startLine: 1, endLine: 5000, contextLines: 0 },
+                { storage: mockStorage, workingDirectory: '/test', logger: mockLogger }
+            );
+
+            expect(result).toContain('truncated for token safety');
+            expect(result).toContain('requested section (1-5000)');
+            expect(result).toContain('MIDDLE OMITTED');
         });
 
         it('should throw error when storage not available', async () => {

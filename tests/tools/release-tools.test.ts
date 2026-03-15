@@ -441,6 +441,17 @@ describe('Release Tools', () => {
             expect(result).toContain('3: line3');
         });
 
+        it('should truncate oversized file content for token safety', async () => {
+            (mockContext.storage.readFile as any).mockResolvedValue(`${'a'.repeat(9000)}\n${'b'.repeat(9000)}`);
+
+            const tool = tools.find(t => t.name === 'get_file_content')!;
+            const result = await tool.execute({ filePath: 'src/huge.ts' }, mockContext);
+
+            expect(result).toContain('truncated for token safety');
+            expect(result).toContain('MIDDLE OMITTED');
+            expect(result).toContain('src/huge.ts');
+        });
+
         it('should handle ENOENT errors gracefully for deleted files', async () => {
             const enoentError: any = new Error('ENOENT: no such file or directory');
             enoentError.code = 'ENOENT';
@@ -605,6 +616,21 @@ describe('Release Tools', () => {
 
             expect(result).toContain('line1');
             expect(result).toContain('line3');
+        });
+
+        it('should truncate oversized analyzed sections for token safety', async () => {
+            const fileContent = Array.from({ length: 5000 }, (_, i) => `line ${i + 1} ${'x'.repeat(20)}`).join('\n');
+            (mockContext.storage.readFile as any).mockResolvedValue(fileContent);
+
+            const tool = tools.find(t => t.name === 'analyze_diff_section')!;
+            const result = await tool.execute(
+                { filePath: 'src/big.ts', startLine: 1, endLine: 5000, contextLines: 0 },
+                mockContext
+            );
+
+            expect(result).toContain('truncated for token safety');
+            expect(result).toContain('requested section (1-5000)');
+            expect(result).toContain('MIDDLE OMITTED');
         });
 
         it('should handle read errors', async () => {
