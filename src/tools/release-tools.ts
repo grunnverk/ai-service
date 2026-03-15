@@ -2,6 +2,47 @@ import type { Tool, ToolContext } from './types';
 import { run } from '@grunnverk/git-tools';
 import * as path from 'path';
 
+const MAX_TOOL_CONTENT_CHARS = 12000;
+
+function truncateForTokenSafety(content: string, options: {
+    filePath: string;
+    includeLineNumbers?: boolean;
+    source: 'file' | 'section';
+    startLine?: number;
+    endLine?: number;
+}): string {
+    if (content.length <= MAX_TOOL_CONTENT_CHARS) {
+        return content;
+    }
+
+    const headLength = Math.floor(MAX_TOOL_CONTENT_CHARS * 0.6);
+    const tailLength = Math.floor(MAX_TOOL_CONTENT_CHARS * 0.25);
+    const head = content.slice(0, headLength).trimEnd();
+    const tail = content.slice(-tailLength).trimStart();
+    const omittedChars = content.length - head.length - tail.length;
+    const scopeDescription = options.source === 'section' && options.startLine !== undefined && options.endLine !== undefined
+        ? `requested section (${options.startLine}-${options.endLine})`
+        : 'requested file';
+    const lineNumberHint = options.includeLineNumbers
+        ? ' Line numbers are preserved in the visible portions.'
+        : '';
+
+    return [
+        `Content from ${options.filePath} was truncated for token safety.`,
+        `Original size: ${content.length.toLocaleString()} characters; omitted: ${omittedChars.toLocaleString()} characters from the middle.`,
+        `Showing the start and end of the ${scopeDescription}.${lineNumberHint}`,
+        'If you need a narrower view, request a smaller section with analyze_diff_section.',
+        '',
+        '--- START ---',
+        head,
+        '',
+        `--- MIDDLE OMITTED (${omittedChars.toLocaleString()} chars) ---`,
+        '',
+        '--- END ---',
+        tail,
+    ].join('\n');
+}
+
 /**
  * Create tools for release notes generation
  */
@@ -106,10 +147,19 @@ function createGetFileContentTool(): Tool {
 
                 if (includeLineNumbers) {
                     const lines = content.split('\n');
-                    return lines.map((line: string, idx: number) => `${idx + 1}: ${line}`).join('\n');
+                    const numberedContent = lines.map((line: string, idx: number) => `${idx + 1}: ${line}`).join('\n');
+                    return truncateForTokenSafety(numberedContent, {
+                        filePath,
+                        includeLineNumbers,
+                        source: 'file',
+                    });
                 }
 
-                return content;
+                return truncateForTokenSafety(content, {
+                    filePath,
+                    includeLineNumbers,
+                    source: 'file',
+                });
             } catch (error: any) {
                 // Handle file not found gracefully - common for deleted files in diffs
                 if (error.code === 'ENOENT' || error.message?.includes('ENOENT')) {
@@ -351,7 +401,16 @@ function createAnalyzeDiffSectionTool(): Tool {
                     .map((line: string, idx: number) => `${actualStart + idx + 1}: ${line}`)
                     .join('\n');
 
-                return `Lines ${actualStart + 1}-${actualEnd} from ${filePath}:\n\n${section}`;
+                return truncateForTokenSafety(
+                    `Lines ${actualStart + 1}-${actualEnd} from ${filePath}:\n\n${section}`,
+                    {
+                        filePath,
+                        includeLineNumbers: true,
+                        source: 'section',
+                        startLine,
+                        endLine,
+                    }
+                );
             } catch (error: any) {
                 throw new Error(`Failed to analyze diff section: ${error.message}`);
             }
